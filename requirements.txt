@@ -7,3 +7,4 @@ pandas==2.2.3
 openpyxl==3.1.5
 reportlab==4.2.5
 psycopg[binary]==3.2.3
+itsdangerous==2.2.0
