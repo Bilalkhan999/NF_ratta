@@ -169,10 +169,11 @@ def totals(db: Session, *, from_date: dt.date | None, to_date: dt.date | None, t
 
 def distinct_names(db: Session, *, limit: int = 200) -> list[str]:
     stmt = (
-        select(func.distinct(Transaction.name))
+        select(func.min(Transaction.name))
         .where(Transaction.is_deleted.is_(False))
         .where(Transaction.name.is_not(None))
         .where(func.length(func.trim(Transaction.name)) > 0)
+        .group_by(func.lower(Transaction.name))
         .order_by(func.lower(Transaction.name))
         .limit(limit)
     )
@@ -182,10 +183,11 @@ def distinct_names(db: Session, *, limit: int = 200) -> list[str]:
 
 def distinct_categories(db: Session, *, limit: int = 200) -> list[str]:
     stmt = (
-        select(func.distinct(Transaction.category))
+        select(func.min(Transaction.category))
         .where(Transaction.is_deleted.is_(False))
         .where(Transaction.category.is_not(None))
         .where(func.length(func.trim(Transaction.category)) > 0)
+        .group_by(func.lower(Transaction.category))
         .order_by(func.lower(Transaction.category))
         .limit(limit)
     )
