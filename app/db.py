@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import create_engine
@@ -29,6 +30,17 @@ if DB_URL.startswith("postgresql://"):
 engine_kwargs: dict = {"pool_pre_ping": True}
 if IS_SQLITE:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+elif IS_VERCEL and "supabase.co" in DB_URL:
+    try:
+        parts = urlsplit(DB_URL)
+        hostname = parts.hostname
+        if hostname:
+            infos = socket.getaddrinfo(hostname, parts.port or 5432, family=socket.AF_INET, type=socket.SOCK_STREAM)
+            if infos:
+                ipv4 = infos[0][4][0]
+                engine_kwargs["connect_args"] = {"hostaddr": ipv4}
+    except Exception:
+        pass
 
 engine = create_engine(DB_URL, **engine_kwargs)
 
