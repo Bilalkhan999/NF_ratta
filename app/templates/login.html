@@ -1,25 +1,59 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-md-6 col-lg-5">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <h3 class="mb-3">Login</h3>
-        {% if error %}
-          <div class="alert alert-danger" role="alert">{{ error }}</div>
-        {% endif %}
-        <form method="post" action="/login">
-          <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input class="form-control" name="username" required />
+<div class="auth-shell">
+  <div class="auth-orb auth-orb-1" aria-hidden="true"></div>
+  <div class="auth-orb auth-orb-2" aria-hidden="true"></div>
+  <div class="auth-grid row g-4 align-items-stretch">
+    <div class="col-12 col-lg-6">
+      <div class="auth-hero">
+        <div class="auth-badge">Nusrat Furniture</div>
+        <h1 class="auth-title">Payment Management</h1>
+        <div class="auth-subtitle">Secure access to daily in/out, reports, and analytics.</div>
+        <div class="auth-kpis">
+          <div class="auth-kpi" style="--d: 0ms;">
+            <div class="auth-kpi-title">Daily Tracking</div>
+            <div class="auth-kpi-sub">Incoming & outgoing</div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input class="form-control" type="password" name="password" required />
+          <div class="auth-kpi" style="--d: 80ms;">
+            <div class="auth-kpi-title">Reports</div>
+            <div class="auth-kpi-sub">Weekly & monthly</div>
           </div>
-          <button class="btn btn-primary w-100" type="submit">Sign in</button>
-        </form>
+          <div class="auth-kpi" style="--d: 160ms;">
+            <div class="auth-kpi-title">Exports</div>
+            <div class="auth-kpi-sub">PDF & Excel</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card auth-card shadow-sm">
+        <div class="card-body p-4 p-md-5">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <h3 class="mb-1">Login</h3>
+              <div class="text-secondary">Enter your credentials to continue</div>
+            </div>
+            <div class="auth-mark" aria-hidden="true">NF</div>
+          </div>
+
+          {% if error %}
+            <div class="alert alert-danger" role="alert">{{ error }}</div>
+          {% endif %}
+
+          <form method="post" action="/login" class="auth-form">
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <input class="form-control form-control-lg" name="username" required autocomplete="username" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <input class="form-control form-control-lg" type="password" name="password" required autocomplete="current-password" />
+            </div>
+            <button class="btn btn-primary btn-lg w-100" type="submit">Sign in</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
