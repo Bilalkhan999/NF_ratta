@@ -484,6 +484,7 @@ def to_dataframe(items: list[Transaction]) -> pd.DataFrame:
 
 @app.get("/export/xlsx")
 def export_xlsx(
+    request: Request,
     db: Session = Depends(get_db),
     from_date: str | None = None,
     to_date: str | None = None,
@@ -492,31 +493,18 @@ def export_xlsx(
     name: str | None = None,
     q: str | None = None,
 ):
-    f = parse_date(from_date)
-    t = parse_date(to_date)
-    f, t = clamp_date_range(f, t)
+    params = {
+        "from_date": from_date or "",
+        "to_date": to_date or "",
+        "type": type or "",
+        "category": category or "",
+        "name": name or "",
+        "q": q or "",
+    }
+    from urllib.parse import urlencode
 
-    items = crud.list_transactions(db, from_date=f, to_date=t, type=type, category=category, name=name, q=q, limit=10000)
-    df = to_dataframe(items)
-
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Transactions")
-
-        incoming, outgoing, net = crud.totals(db, from_date=f, to_date=t, type=type, category=category, name=name, q=q)
-        summary = pd.DataFrame(
-            [
-                {"Metric": "Total Incoming", "Value": incoming},
-                {"Metric": "Total Outgoing", "Value": outgoing},
-                {"Metric": "Net", "Value": net},
-            ]
-        )
-        summary.to_excel(writer, index=False, sheet_name="Summary")
-
-    output.seek(0)
-    filename = "nusrat-furniture-transactions.xlsx"
-    headers = {"Content-Disposition": f"attachment; filename={filename}"}
-    return Response(output.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+    url = "/export/pdf?" + urlencode(params)
+    return RedirectResponse(url=url, status_code=303)
 
 
 @app.get("/export/pdf")
