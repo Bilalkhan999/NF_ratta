@@ -28,7 +28,9 @@ class Employee(Base):
     role_description = Column(String(256), nullable=True)
     payment_rate = Column(Integer, nullable=True)
 
-    profile_image_url = Column(String(512), nullable=False)
+    profile_image_url = Column(String(512), nullable=True)
+    profile_image_data = Column(Text, nullable=True)
+    cnic_image_data = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())

@@ -3,9 +3,10 @@ from __future__ import annotations
 import datetime as dt
 import io
 import os
+import base64
 
 import pandas as pd
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -112,6 +113,22 @@ def on_startup() -> None:
             except Exception:
                 pass
 
+            try:
+                emp_cols = {c["name"] for c in insp.get_columns("employees")}
+                emp_alter: list[str] = []
+                if "profile_image_url" not in emp_cols:
+                    emp_alter.append("ALTER TABLE employees ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(512)")
+                if "profile_image_data" not in emp_cols:
+                    emp_alter.append("ALTER TABLE employees ADD COLUMN IF NOT EXISTS profile_image_data TEXT")
+                if "cnic_image_data" not in emp_cols:
+                    emp_alter.append("ALTER TABLE employees ADD COLUMN IF NOT EXISTS cnic_image_data TEXT")
+                if emp_alter:
+                    with engine.begin() as conn:
+                        for stmt in emp_alter:
+                            conn.execute(text(stmt))
+            except Exception:
+                pass
+
 
 def _is_logged_in(request: Request) -> bool:
     try:
@@ -167,7 +184,9 @@ def employee_new_post(
     work_type: str = Form(...),
     role_description: str | None = Form(None),
     payment_rate: int | None = Form(None),
-    profile_image_url: str = Form(...),
+    profile_image_url: str | None = Form(None),
+    profile_image: UploadFile | None = File(None),
+    cnic_image: UploadFile | None = File(None),
 ):
     jd = parse_date(joining_date) or dt.date.today()
     errors: dict[str, str] = {}
@@ -179,8 +198,8 @@ def employee_new_post(
         errors["work_type"] = "Invalid work type."
     if status not in {"active", "inactive"}:
         errors["status"] = "Invalid status."
-    if not (profile_image_url or "").strip():
-        errors["profile_image_url"] = "Profile image URL is required."
+    if not profile_image and not (profile_image_url or "").strip():
+        errors["profile_image_url"] = "Profile image is required."
     if errors:
         ctx = common_context(request)
         ctx.update(
@@ -206,6 +225,20 @@ def employee_new_post(
         )
         return TEMPLATES.TemplateResponse("employee_form.html", ctx, status_code=400)
 
+    profile_data: str | None = None
+    if profile_image is not None:
+        raw = profile_image.file.read()
+        if raw:
+            b64 = base64.b64encode(raw).decode("ascii")
+            profile_data = f"data:{profile_image.content_type or 'application/octet-stream'};base64,{b64}"
+
+    cnic_data: str | None = None
+    if cnic_image is not None:
+        raw2 = cnic_image.file.read()
+        if raw2:
+            b64_2 = base64.b64encode(raw2).decode("ascii")
+            cnic_data = f"data:{cnic_image.content_type or 'application/octet-stream'};base64,{b64_2}"
+
     emp = crud.create_employee(
         db,
         full_name=full_name.strip(),
@@ -220,8 +253,13 @@ def employee_new_post(
         work_type=work_type,
         role_description=role_description,
         payment_rate=payment_rate,
-        profile_image_url=profile_image_url.strip(),
+        profile_image_url=(profile_image_url or "").strip(),
     )
+    if profile_data or cnic_data:
+        emp.profile_image_data = profile_data
+        emp.cnic_image_data = cnic_data
+        db.add(emp)
+        db.commit()
     return RedirectResponse(url=f"/employees/{emp.id}", status_code=303)
 
 
@@ -280,7 +318,9 @@ def employee_edit_post(
     work_type: str = Form(...),
     role_description: str | None = Form(None),
     payment_rate: int | None = Form(None),
-    profile_image_url: str = Form(...),
+    profile_image_url: str | None = Form(None),
+    profile_image: UploadFile | None = File(None),
+    cnic_image: UploadFile | None = File(None),
 ):
     emp = crud.get_employee(db, employee_id)
     if not emp:
@@ -295,8 +335,8 @@ def employee_edit_post(
         errors["work_type"] = "Invalid work type."
     if status not in {"active", "inactive"}:
         errors["status"] = "Invalid status."
-    if not (profile_image_url or "").strip():
-        errors["profile_image_url"] = "Profile image URL is required."
+    if not profile_image and not (profile_image_url or "").strip() and not (emp.profile_image_data or emp.profile_image_url):
+        errors["profile_image_url"] = "Profile image is required."
     if errors:
         ctx = common_context(request)
         ctx.update({"mode": "edit", "emp": emp, "errors": errors})
@@ -317,8 +357,21 @@ def employee_edit_post(
         work_type=work_type,
         role_description=role_description,
         payment_rate=payment_rate,
-        profile_image_url=profile_image_url.strip(),
+        profile_image_url=(profile_image_url or "").strip(),
     )
+
+    if profile_image is not None:
+        raw = profile_image.file.read()
+        if raw:
+            b64 = base64.b64encode(raw).decode("ascii")
+            emp.profile_image_data = f"data:{profile_image.content_type or 'application/octet-stream'};base64,{b64}"
+    if cnic_image is not None:
+        raw2 = cnic_image.file.read()
+        if raw2:
+            b64_2 = base64.b64encode(raw2).decode("ascii")
+            emp.cnic_image_data = f"data:{cnic_image.content_type or 'application/octet-stream'};base64,{b64_2}"
+    db.add(emp)
+    db.commit()
     return RedirectResponse(url=f"/employees/{employee_id}", status_code=303)
 
 

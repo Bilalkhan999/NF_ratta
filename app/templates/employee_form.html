@@ -11,7 +11,7 @@
 
   <div class="card">
     <div class="card-body">
-      <form method="post" action="{% if mode == 'edit' %}/employees/{{ emp.id }}/edit{% else %}/employees/new{% endif %}">
+      <form method="post" enctype="multipart/form-data" action="{% if mode == 'edit' %}/employees/{{ emp.id }}/edit{% else %}/employees/new{% endif %}">
         <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label">Full Name</label>
@@ -89,10 +89,20 @@
           </div>
 
           <div class="col-12">
-            <label class="form-label">Profile Image URL</label>
-            <input class="form-control {% if errors.get('profile_image_url') %}is-invalid{% endif %}" name="profile_image_url" value="{{ (emp.profile_image_url if emp else '') }}" required />
+            <label class="form-label">Profile Image (browse from computer)</label>
+            <input class="form-control {% if errors.get('profile_image_url') %}is-invalid{% endif %}" type="file" name="profile_image" accept="image/*" />
             {% if errors.get('profile_image_url') %}<div class="invalid-feedback">{{ errors.get('profile_image_url') }}</div>{% endif %}
-            <div class="form-text">For now use a public image URL. (We can add real uploads later.)</div>
+            <div class="form-text">Upload image from your computer. If you don't upload, you can use the URL below (optional).</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Profile Image URL (optional)</label>
+            <input class="form-control" name="profile_image_url" value="{{ (emp.profile_image_url if emp else '') }}" />
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">CNIC Pic (optional)</label>
+            <input class="form-control" type="file" name="cnic_image" accept="image/*" />
           </div>
 
           <div class="col-12 d-flex gap-2">

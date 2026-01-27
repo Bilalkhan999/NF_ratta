@@ -123,7 +123,7 @@ def create_employee(
         work_type=work_type,
         role_description=role_description or None,
         payment_rate=payment_rate,
-        profile_image_url=profile_image_url,
+        profile_image_url=profile_image_url or None,
     )
     db.add(emp)
     db.commit()
@@ -161,7 +161,7 @@ def update_employee(
     emp.work_type = work_type
     emp.role_description = role_description or None
     emp.payment_rate = payment_rate
-    emp.profile_image_url = profile_image_url
+    emp.profile_image_url = profile_image_url or None
     db.add(emp)
     db.commit()
     db.refresh(emp)
@@ -204,10 +204,21 @@ def create_assignment(
 
 
 def employee_transactions(db: Session, *, employee_id: int, limit: int = 500) -> list[Transaction]:
+    emp = get_employee(db, employee_id)
+    if not emp:
+        return []
+
+    legacy_name_clause = and_(
+        Transaction.employee_id.is_(None),
+        Transaction.name.is_not(None),
+        func.lower(func.trim(Transaction.name)) == func.lower(func.trim(emp.full_name)),
+    )
+
     stmt = (
         select(Transaction)
         .where(Transaction.is_deleted.is_(False))
-        .where(Transaction.employee_id == employee_id)
+        .where(Transaction.type == "outgoing")
+        .where(or_(Transaction.employee_id == employee_id, legacy_name_clause))
         .order_by(Transaction.date.asc(), Transaction.id.asc())
         .limit(limit)
     )
@@ -215,6 +226,16 @@ def employee_transactions(db: Session, *, employee_id: int, limit: int = 500) ->
 
 
 def employee_financial_summary(db: Session, *, employee_id: int) -> dict[str, int]:
+    emp = get_employee(db, employee_id)
+    if not emp:
+        return {"advance": 0, "paid": 0, "advance_balance": 0, "count": 0}
+
+    legacy_name_clause = and_(
+        Transaction.employee_id.is_(None),
+        Transaction.name.is_not(None),
+        func.lower(func.trim(Transaction.name)) == func.lower(func.trim(emp.full_name)),
+    )
+
     stmt = (
         select(
             func.coalesce(
@@ -225,7 +246,10 @@ def employee_financial_summary(db: Session, *, employee_id: int) -> dict[str, in
                 func.sum(
                     case(
                         (
-                            Transaction.employee_tx_type.in_(["salary", "per_work"]),
+                            or_(
+                                Transaction.employee_tx_type.in_(["salary", "per_work"]),
+                                Transaction.employee_tx_type.is_(None),
+                            ),
                             Transaction.amount_pkr,
                         ),
                         else_=0,
@@ -236,8 +260,8 @@ def employee_financial_summary(db: Session, *, employee_id: int) -> dict[str, in
             func.coalesce(func.count(Transaction.id), 0).label("count"),
         )
         .where(Transaction.is_deleted.is_(False))
-        .where(Transaction.employee_id == employee_id)
         .where(Transaction.type == "outgoing")
+        .where(or_(Transaction.employee_id == employee_id, legacy_name_clause))
     )
     row = db.execute(stmt).one()
     advance = int(row.advance or 0)

@@ -35,10 +35,12 @@
               <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
               {% if request.url.path != '/' %}
                 <li class="nav-item"><a class="nav-link" href="/employees">Employees</a></li>
-                <li class="nav-item"><a class="nav-link" href="/daily">Daily Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="/reports">Reports</a></li>
-                <li class="nav-item"><a class="nav-link" href="/analytics">Analytics</a></li>
-                <li class="nav-item"><a class="nav-link" href="/transactions">Transactions</a></li>
+                {% if not request.url.path.startswith('/employees') %}
+                  <li class="nav-item"><a class="nav-link" href="/daily">Daily Dashboard</a></li>
+                  <li class="nav-item"><a class="nav-link" href="/reports">Reports</a></li>
+                  <li class="nav-item"><a class="nav-link" href="/analytics">Analytics</a></li>
+                  <li class="nav-item"><a class="nav-link" href="/transactions">Transactions</a></li>
+                {% endif %}
               {% endif %}
             {% endif %}
           </ul>
@@ -57,8 +59,10 @@
               </span>
             </button>
             {% if is_logged_in %}
-              <a class="btn btn-primary btn-sm" href="/add?type=incoming">+ Incoming</a>
-              <a class="btn btn-outline-primary btn-sm" href="/add?type=outgoing">+ Outgoing</a>
+              {% if not request.url.path.startswith('/employees') %}
+                <a class="btn btn-primary btn-sm" href="/add?type=incoming">+ Incoming</a>
+                <a class="btn btn-outline-primary btn-sm" href="/add?type=outgoing">+ Outgoing</a>
+              {% endif %}
               <a class="btn btn-outline-danger btn-sm" href="/logout">Logout</a>
             {% endif %}
           </div>

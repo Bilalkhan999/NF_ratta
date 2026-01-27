@@ -3,7 +3,7 @@
 {% block content %}
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div class="d-flex align-items-center gap-3">
-      <img src="{{ emp.profile_image_url }}" alt="{{ emp.full_name }}" style="width:56px;height:56px;object-fit:cover;border-radius:16px;border:1px solid rgba(0,0,0,0.1);" />
+      <img src="{{ emp.profile_image_data or emp.profile_image_url or '' }}" alt="{{ emp.full_name }}" style="width:56px;height:56px;object-fit:cover;border-radius:16px;border:1px solid rgba(0,0,0,0.1);" />
       <div>
         <h3 class="mb-0">{{ emp.full_name }}</h3>
         <div class="text-muted">{{ emp.category }} • {{ emp.work_type }} • {{ emp.status }}</div>
@@ -27,6 +27,12 @@
       <div class="card">
         <div class="card-body">
           <h6 class="mb-3">Weekly Assignments</h6>
+          {% if emp.cnic_image_data %}
+            <div class="mb-3">
+              <div class="text-muted mb-1">CNIC Pic</div>
+              <img src="{{ emp.cnic_image_data }}" alt="CNIC" style="width:100%;max-height:220px;object-fit:contain;border-radius:12px;border:1px solid rgba(0,0,0,0.1);" />
+            </div>
+          {% endif %}
           <form class="row g-2" method="post" action="/employees/{{ emp.id }}/assignments/new">
             <div class="col-6">
               <label class="form-label">Week Start</label>
