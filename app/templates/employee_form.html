@@ -102,7 +102,8 @@
 
           <div class="col-12">
             <label class="form-label">CNIC Pic (optional)</label>
-            <input class="form-control" type="file" name="cnic_image" accept="image/*" />
+            <input class="form-control {% if errors.get('cnic_image') %}is-invalid{% endif %}" type="file" name="cnic_image" accept="image/*" />
+            {% if errors.get('cnic_image') %}<div class="invalid-feedback">{{ errors.get('cnic_image') }}</div>{% endif %}
           </div>
 
           <div class="col-12 d-flex gap-2">

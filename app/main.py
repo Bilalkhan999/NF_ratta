@@ -42,6 +42,23 @@ from .utils import (
     sat_thu_week_range,
 )
 
+
+MAX_IMAGE_UPLOAD_BYTES = int(os.getenv("MAX_IMAGE_UPLOAD_BYTES", "800000"))
+
+
+def _decode_data_url(data_url: str) -> tuple[str, bytes] | None:
+    if not data_url:
+        return None
+    if not data_url.startswith("data:"):
+        return None
+    try:
+        header, b64 = data_url.split(",", 1)
+        content_type = header.split(":", 1)[1].split(";", 1)[0] or "application/octet-stream"
+        raw = base64.b64decode(b64)
+        return content_type, raw
+    except Exception:
+        return None
+
 app = FastAPI(title="Nusrat Furniture Payments")
 
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret")
@@ -225,19 +242,28 @@ def employee_new_post(
         )
         return TEMPLATES.TemplateResponse("employee_form.html", ctx, status_code=400)
 
-    profile_data: str | None = None
+    profile_data = None
     if profile_image is not None:
         raw = profile_image.file.read()
-        if raw:
+        if raw and len(raw) > MAX_IMAGE_UPLOAD_BYTES:
+            errors["profile_image_url"] = f"Profile image is too large. Max {MAX_IMAGE_UPLOAD_BYTES // 1000}KB."
+        elif raw:
             b64 = base64.b64encode(raw).decode("ascii")
             profile_data = f"data:{profile_image.content_type or 'application/octet-stream'};base64,{b64}"
 
-    cnic_data: str | None = None
+    cnic_data = None
     if cnic_image is not None:
         raw2 = cnic_image.file.read()
-        if raw2:
+        if raw2 and len(raw2) > MAX_IMAGE_UPLOAD_BYTES:
+            errors["cnic_image"] = f"CNIC image is too large. Max {MAX_IMAGE_UPLOAD_BYTES // 1000}KB."
+        elif raw2:
             b64_2 = base64.b64encode(raw2).decode("ascii")
             cnic_data = f"data:{cnic_image.content_type or 'application/octet-stream'};base64,{b64_2}"
+
+    if errors:
+        ctx = common_context(request)
+        ctx.update({"mode": "new", "emp": None, "errors": errors})
+        return TEMPLATES.TemplateResponse("employee_form.html", ctx, status_code=400)
 
     emp = crud.create_employee(
         db,
@@ -289,6 +315,32 @@ def employee_profile(request: Request, employee_id: int, db: Session = Depends(g
     ctx = common_context(request)
     ctx.update({"emp": emp, "summary": summary, "ledger": ledger, "assignments": assignments})
     return TEMPLATES.TemplateResponse("employee_profile.html", ctx)
+
+
+@app.get("/employees/{employee_id}/profile-image")
+def employee_profile_image(employee_id: int, db: Session = Depends(get_db)):
+    emp = crud.get_employee(db, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    decoded = _decode_data_url(emp.profile_image_data or "")
+    if not decoded:
+        raise HTTPException(status_code=404, detail="No image")
+    content_type, raw = decoded
+    return Response(content=raw, media_type=content_type)
+
+
+@app.get("/employees/{employee_id}/cnic-image")
+def employee_cnic_image(employee_id: int, db: Session = Depends(get_db)):
+    emp = crud.get_employee(db, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    decoded = _decode_data_url(emp.cnic_image_data or "")
+    if not decoded:
+        raise HTTPException(status_code=404, detail="No image")
+    content_type, raw = decoded
+    return Response(content=raw, media_type=content_type)
 
 
 @app.get("/employees/{employee_id}/edit", response_class=HTMLResponse)
@@ -362,14 +414,23 @@ def employee_edit_post(
 
     if profile_image is not None:
         raw = profile_image.file.read()
-        if raw:
+        if raw and len(raw) > MAX_IMAGE_UPLOAD_BYTES:
+            errors["profile_image_url"] = f"Profile image is too large. Max {MAX_IMAGE_UPLOAD_BYTES // 1000}KB."
+        elif raw:
             b64 = base64.b64encode(raw).decode("ascii")
             emp.profile_image_data = f"data:{profile_image.content_type or 'application/octet-stream'};base64,{b64}"
     if cnic_image is not None:
         raw2 = cnic_image.file.read()
-        if raw2:
+        if raw2 and len(raw2) > MAX_IMAGE_UPLOAD_BYTES:
+            errors["cnic_image"] = f"CNIC image is too large. Max {MAX_IMAGE_UPLOAD_BYTES // 1000}KB."
+        elif raw2:
             b64_2 = base64.b64encode(raw2).decode("ascii")
             emp.cnic_image_data = f"data:{cnic_image.content_type or 'application/octet-stream'};base64,{b64_2}"
+
+    if errors:
+        ctx = common_context(request)
+        ctx.update({"mode": "edit", "emp": emp, "errors": errors})
+        return TEMPLATES.TemplateResponse("employee_form.html", ctx, status_code=400)
     db.add(emp)
     db.commit()
     return RedirectResponse(url=f"/employees/{employee_id}", status_code=303)
