@@ -307,7 +307,7 @@ def employee_profile(request: Request, employee_id: int, db: Session = Depends(g
         if (txx.employee_tx_type or "") == "advance":
             debit = int(txx.amount_pkr)
             running += debit
-        elif (txx.employee_tx_type or "") in {"salary", "per_work"}:
+        elif (txx.employee_tx_type or "") in {"salary", "per_work"} or txx.employee_tx_type is None:
             credit = int(txx.amount_pkr)
             running -= credit
         ledger.append({"tx": txx, "debit": debit, "credit": credit, "balance": running})
