@@ -15,6 +15,14 @@
         <h6 class="mb-3">Debug: Distinct Transaction Names & Categories</h6>
         <pre class="bg-light p-2 rounded mb-4" style="font-size:0.875rem;">{{ debug_rows }}</pre>
       {% endif %}
+      {% if errors %}
+        <h6 class="mb-3 text-danger">Errors</h6>
+        <ul class="mb-4">
+          {% for e in errors %}
+            <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
       {% if created %}
         <h6 class="mb-3">Employees Created</h6>
         <ul class="mb-4">

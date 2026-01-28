@@ -533,7 +533,7 @@ def tx_names_debug(request: Request, db: Session = Depends(get_db)):
     stmt = select(Transaction.name, Transaction.category).where(Transaction.is_deleted.is_(False)).where(Transaction.name.is_not(None)).distinct()
     rows = db.execute(stmt).all()
     # Show all current employees
-    emp_rows = db.execute(select(Employee.full_name, Employee.category).where(Employee.is_deleted.is_(False))).all()
+    emp_rows = db.execute(select(Employee.full_name, Employee.category)).all()
     ctx = common_context(request)
     ctx.update({"tx_rows": rows, "emp_rows": emp_rows})
     return TEMPLATES.TemplateResponse("admin_tx_names_debug.html", ctx)
@@ -548,84 +548,92 @@ def sync_employees_from_transactions(request: Request, db: Session = Depends(get
 
     created = []
     linked = 0
+    errors: list[str] = []
     for name, category in rows:
-        if not name or not name.strip():
-            continue
-        name = name.strip()
-        print(f"DEBUG: processing name='{name}' category='{category}'")
+        try:
+            if not name or not name.strip():
+                continue
+            name = name.strip()
+            print(f"DEBUG: processing name='{name}' category='{category}'")
 
-        # Special case: ensure two distinct employees for Murtaza if both categories exist
-        if name.lower() == "murtaza" and category in {"Employee", "Karkhanay Wala"}:
-            # Try to find existing employee with matching name and category mapping
-            emp = None
-            existing = db.execute(select(Employee).where(Employee.full_name.ilike(name))).scalars().all()
-            print(f"DEBUG: Murtaza existing employees: {existing}")
-            for e in existing:
-                emp_cat = _employee_outgoing_category(e)
-                if emp_cat == category:
-                    emp = e
-                    break
-            if not emp:
-                emp = crud.create_employee(
-                    db,
-                    full_name=name,
-                    father_name=None,
-                    cnic=None,
-                    mobile_number=None,
-                    address=None,
-                    emergency_contact=None,
-                    joining_date=dt.date.today(),
-                    status="active",
-                    category=_map_category_to_employee_category(category),
-                    work_type="daily",
-                    role_description=None,
-                    payment_rate=None,
-                    profile_image_url=None,
-                )
-                created.append(f"{name} ({category})")
-                print(f"DEBUG: created Murtaza employee for category '{category}'")
-        else:
-            # General case: one employee per name
-            emp = db.execute(select(Employee).where(Employee.full_name.ilike(name))).scalar_one_or_none()
-            print(f"DEBUG: existing employee for '{name}': {emp}")
-            if not emp:
-                emp = crud.create_employee(
-                    db,
-                    full_name=name,
-                    father_name=None,
-                    cnic=None,
-                    mobile_number=None,
-                    address=None,
-                    emergency_contact=None,
-                    joining_date=dt.date.today(),
-                    status="active",
-                    category=_map_category_to_employee_category(category),
-                    work_type="daily",
-                    role_description=None,
-                    payment_rate=None,
-                    profile_image_url=None,
-                )
-                created.append(name)
-                print(f"DEBUG: created employee for '{name}' category '{category}'")
+            # Special case: ensure two distinct employees for Murtaza if both categories exist
+            if name.lower() == "murtaza" and category in {"Employee", "Karkhanay Wala"}:
+                # Try to find existing employee with matching name and category mapping
+                emp = None
+                existing = db.execute(select(Employee).where(Employee.full_name.ilike(name))).scalars().all()
+                print(f"DEBUG: Murtaza existing employees: {existing}")
+                for e in existing:
+                    emp_cat = _employee_outgoing_category(e)
+                    if emp_cat == category:
+                        emp = e
+                        break
+                if not emp:
+                    emp = crud.create_employee(
+                        db,
+                        full_name=name,
+                        father_name=None,
+                        cnic=None,
+                        mobile_number=None,
+                        address=None,
+                        emergency_contact=None,
+                        joining_date=dt.date.today(),
+                        status="active",
+                        category=_map_category_to_employee_category(category),
+                        work_type="daily",
+                        role_description=None,
+                        payment_rate=None,
+                        profile_image_url="",
+                    )
+                    created.append(f"{name} ({category})")
+                    print(f"DEBUG: created Murtaza employee for category '{category}'")
+            else:
+                # General case: one employee per name
+                emp = db.execute(select(Employee).where(Employee.full_name.ilike(name))).scalar_one_or_none()
+                print(f"DEBUG: existing employee for '{name}': {emp}")
+                if not emp:
+                    emp = crud.create_employee(
+                        db,
+                        full_name=name,
+                        father_name=None,
+                        cnic=None,
+                        mobile_number=None,
+                        address=None,
+                        emergency_contact=None,
+                        joining_date=dt.date.today(),
+                        status="active",
+                        category=_map_category_to_employee_category(category),
+                        work_type="daily",
+                        role_description=None,
+                        payment_rate=None,
+                        profile_image_url="",
+                    )
+                    created.append(name)
+                    print(f"DEBUG: created employee for '{name}' category '{category}'")
 
-        # Link all transactions for this name+category to the employee
-        txs = db.execute(
-            select(Transaction)
-            .where(Transaction.is_deleted.is_(False))
-            .where(Transaction.name.ilike(name))
-            .where(Transaction.category == category)
-            .where(Transaction.employee_id.is_(None))
-        ).scalars().all()
-        print(f"DEBUG: linking {len(txs)} transactions for '{name}' category '{category}'")
-        for tx in txs:
-            tx.employee_id = emp.id
-            if not tx.employee_tx_type:
-                tx.employee_tx_type = "salary"
-        linked += len(txs)
+            # Link all transactions for this name+category to the employee
+            txs = db.execute(
+                select(Transaction)
+                .where(Transaction.is_deleted.is_(False))
+                .where(Transaction.name.ilike(name))
+                .where(Transaction.category == category)
+                .where(Transaction.employee_id.is_(None))
+            ).scalars().all()
+            print(f"DEBUG: linking {len(txs)} transactions for '{name}' category '{category}'")
+            for tx in txs:
+                tx.employee_id = emp.id
+                if not tx.employee_tx_type:
+                    tx.employee_tx_type = "salary"
+            linked += len(txs)
+        except Exception as e:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            errors.append(f"{name} / {category}: {e}")
 
     db.commit()
     ctx = common_context(request)
-    ctx.update({"created": created, "linked": linked, "debug_rows": rows})
+    ctx.update({"created": created, "linked": linked, "debug_rows": rows, "errors": errors})
     return TEMPLATES.TemplateResponse("admin_sync_result.html", ctx)
 
 
