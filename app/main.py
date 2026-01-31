@@ -572,6 +572,43 @@ def _require_seed_token(token: str | None) -> None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
+@app.get("/admin/inventory/init", response_class=HTMLResponse)
+def admin_inventory_init(request: Request):
+    if not _seed_is_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    ctx = common_context(request)
+    return TEMPLATES.TemplateResponse("admin_inventory_init.html", ctx)
+
+
+@app.post("/admin/inventory/init", response_class=HTMLResponse)
+def admin_inventory_init_post(request: Request, db: Session = Depends(get_db), token: str | None = Form(None)):
+    _require_seed_token(token)
+
+    created_tables = 0
+    try:
+        Base.metadata.create_all(bind=engine)
+        created_tables = 1
+    except Exception as e:
+        ctx = common_context(request)
+        ctx.update({"ok": False, "error": str(e), "created_tables": created_tables})
+        return TEMPLATES.TemplateResponse("admin_inventory_init_result.html", ctx, status_code=500)
+
+    try:
+        crud.ensure_inventory_seed(db)
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        ctx = common_context(request)
+        ctx.update({"ok": False, "error": str(e), "created_tables": created_tables})
+        return TEMPLATES.TemplateResponse("admin_inventory_init_result.html", ctx, status_code=500)
+
+    ctx = common_context(request)
+    ctx.update({"ok": True, "error": None, "created_tables": created_tables})
+    return TEMPLATES.TemplateResponse("admin_inventory_init_result.html", ctx)
+
+
 @app.get("/admin/seed", response_class=HTMLResponse)
 def admin_seed(request: Request):
     if not _seed_is_enabled():
@@ -930,6 +967,246 @@ def coming_soon(request: Request, feature: str):
     ctx = common_context(request)
     ctx.update({"feature": feature})
     return TEMPLATES.TemplateResponse("coming_soon.html", ctx)
+
+
+@app.get("/inventory", response_class=HTMLResponse)
+def inventory_dashboard(request: Request, db: Session = Depends(get_db)):
+    furniture_low = len(crud.low_stock_furniture(db, limit=500))
+    foam_low = len(crud.low_stock_foam(db, limit=500))
+
+    ctx = common_context(request)
+    ctx.update({"furniture_low": furniture_low, "foam_low": foam_low})
+    return TEMPLATES.TemplateResponse("inventory.html", ctx)
+
+
+@app.get("/inventory/furniture", response_class=HTMLResponse)
+def inventory_furniture(request: Request, db: Session = Depends(get_db), q: str | None = None):
+    categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+    bed_sizes = crud.list_bed_sizes(db)
+    items = crud.list_furniture_items(db, q=q, limit=200)
+
+    ctx = common_context(request)
+    ctx.update({"categories": categories, "bed_sizes": bed_sizes, "items": items, "q": q or "", "errors": {}})
+    return TEMPLATES.TemplateResponse("inventory_furniture.html", ctx)
+
+
+@app.post("/inventory/furniture", response_class=HTMLResponse)
+def inventory_furniture_post(
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(""),
+    sku: str = Form(""),
+    material_type: str = Form("Wood"),
+    color_finish: str | None = Form(None),
+    status: str = Form("IN_STOCK"),
+    category_id: int = Form(...),
+    sub_category_id: int | None = Form(None),
+    notes: str | None = Form(None),
+):
+    errors: dict[str, str] = {}
+    if not name.strip():
+        errors["name"] = "Item name is required."
+    if not sku.strip():
+        errors["sku"] = "SKU is required."
+    if status not in {"IN_STOCK", "OUT_OF_STOCK", "MADE_TO_ORDER"}:
+        errors["status"] = "Invalid status."
+    if errors:
+        categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+        bed_sizes = crud.list_bed_sizes(db)
+        items = crud.list_furniture_items(db, q=None, limit=200)
+        ctx = common_context(request)
+        ctx.update({"categories": categories, "bed_sizes": bed_sizes, "items": items, "q": "", "errors": errors})
+        return TEMPLATES.TemplateResponse("inventory_furniture.html", ctx, status_code=400)
+
+    item = crud.create_furniture_item(
+        db,
+        name=name.strip(),
+        sku=sku.strip(),
+        material_type=material_type.strip() or "Wood",
+        color_finish=(color_finish or "").strip() or None,
+        status=status,
+        category_id=int(category_id),
+        sub_category_id=int(sub_category_id) if sub_category_id else None,
+        notes=(notes or "").strip() or None,
+    )
+
+    return RedirectResponse(url=f"/inventory/furniture/{item.id}", status_code=303)
+
+
+@app.get("/inventory/furniture/{item_id}", response_class=HTMLResponse)
+def inventory_furniture_item(request: Request, item_id: int, db: Session = Depends(get_db)):
+    items = crud.list_furniture_items(db, q=None, limit=500)
+    item = next((i for i in items if i.id == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+    bed_sizes = crud.list_bed_sizes(db)
+    variants = crud.list_furniture_variants(db, furniture_item_id=item_id)
+
+    size_by_id = {s.id: s for s in bed_sizes}
+    existing_by_size: dict[int | None, object] = {}
+    for v in variants:
+        existing_by_size[v.bed_size_id] = v
+
+    ctx = common_context(request)
+    ctx.update(
+        {
+            "categories": categories,
+            "bed_sizes": bed_sizes,
+            "items": items,
+            "selected": item,
+            "variants": variants,
+            "size_by_id": size_by_id,
+            "existing_by_size": existing_by_size,
+        }
+    )
+    return TEMPLATES.TemplateResponse("inventory_furniture_item.html", ctx)
+
+
+@app.post("/inventory/furniture/{item_id}/variants", response_class=HTMLResponse)
+def inventory_furniture_variants_post(
+    item_id: int,
+    db: Session = Depends(get_db),
+    bed_size_id: int | None = Form(None),
+    qty_on_hand: int = Form(0),
+    cost_price_pkr: int = Form(0),
+    sale_price_pkr: int = Form(0),
+    reorder_level: int = Form(0),
+):
+    crud.upsert_furniture_variant(
+        db,
+        furniture_item_id=item_id,
+        bed_size_id=int(bed_size_id) if bed_size_id else None,
+        qty_on_hand=int(qty_on_hand),
+        cost_price_pkr=int(cost_price_pkr),
+        sale_price_pkr=int(sale_price_pkr),
+        reorder_level=int(reorder_level),
+    )
+    return RedirectResponse(url=f"/inventory/furniture/{item_id}", status_code=303)
+
+
+@app.get("/inventory/foam", response_class=HTMLResponse)
+def inventory_foam(request: Request, db: Session = Depends(get_db), brand_id: int | None = None):
+    brands = crud.list_foam_brands(db)
+    brand_by_id = {b.id: b for b in brands}
+    models = crud.list_foam_models(db, brand_id=brand_id)
+
+    ctx = common_context(request)
+    ctx.update({"brands": brands, "brand_by_id": brand_by_id, "models": models, "brand_id": brand_id or "", "errors": {}})
+    return TEMPLATES.TemplateResponse("inventory_foam.html", ctx)
+
+
+@app.post("/inventory/foam/models", response_class=HTMLResponse)
+def inventory_foam_model_post(
+    request: Request,
+    db: Session = Depends(get_db),
+    brand_id: int = Form(...),
+    name: str = Form(""),
+    notes: str | None = Form(None),
+):
+    errors: dict[str, str] = {}
+    if not name.strip():
+        errors["name"] = "Model name is required."
+    if errors:
+        brands = crud.list_foam_brands(db)
+        models = crud.list_foam_models(db, brand_id=None)
+        ctx = common_context(request)
+        ctx.update({"brands": brands, "models": models, "brand_id": "", "errors": errors})
+        return TEMPLATES.TemplateResponse("inventory_foam.html", ctx, status_code=400)
+
+    m = crud.create_foam_model(db, brand_id=int(brand_id), name=name.strip(), notes=(notes or "").strip() or None)
+    return RedirectResponse(url=f"/inventory/foam/{m.id}", status_code=303)
+
+
+@app.get("/inventory/foam/{model_id}", response_class=HTMLResponse)
+def inventory_foam_model(request: Request, model_id: int, db: Session = Depends(get_db)):
+    brands = crud.list_foam_brands(db)
+    brand_by_id = {b.id: b for b in brands}
+    models = crud.list_foam_models(db, brand_id=None)
+    bed_sizes = crud.list_bed_sizes(db)
+    size_by_id = {s.id: s for s in bed_sizes}
+    thicknesses = crud.list_thicknesses(db)
+    thick_by_id = {t.id: t for t in thicknesses}
+    variants = crud.list_foam_variants(db, foam_model_id=model_id)
+
+    selected = next((m for m in models if m.id == model_id), None)
+    if not selected:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    ctx = common_context(request)
+    ctx.update(
+        {
+            "brands": brands,
+            "brand_by_id": brand_by_id,
+            "models": models,
+            "selected": selected,
+            "bed_sizes": bed_sizes,
+            "size_by_id": size_by_id,
+            "thicknesses": thicknesses,
+            "thick_by_id": thick_by_id,
+            "variants": variants,
+        }
+    )
+    return TEMPLATES.TemplateResponse("inventory_foam_model.html", ctx)
+
+
+@app.post("/inventory/foam/{model_id}/variants", response_class=HTMLResponse)
+def inventory_foam_variant_post(
+    model_id: int,
+    db: Session = Depends(get_db),
+    bed_size_id: int = Form(...),
+    thickness_id: int = Form(...),
+    density_type: str | None = Form(None),
+    qty_on_hand: int = Form(0),
+    purchase_cost_pkr: int = Form(0),
+    sale_price_pkr: int = Form(0),
+    reorder_level: int = Form(0),
+):
+    crud.upsert_foam_variant(
+        db,
+        foam_model_id=model_id,
+        bed_size_id=int(bed_size_id),
+        thickness_id=int(thickness_id),
+        density_type=(density_type or "").strip() or None,
+        qty_on_hand=int(qty_on_hand),
+        purchase_cost_pkr=int(purchase_cost_pkr),
+        sale_price_pkr=int(sale_price_pkr),
+        reorder_level=int(reorder_level),
+    )
+    return RedirectResponse(url=f"/inventory/foam/{model_id}", status_code=303)
+
+
+@app.get("/inventory/low-stock", response_class=HTMLResponse)
+def inventory_low_stock(request: Request, db: Session = Depends(get_db)):
+    f_low = crud.low_stock_furniture(db, limit=500)
+    foam_low = crud.low_stock_foam(db, limit=500)
+
+    items = crud.list_furniture_items(db, q=None, limit=5000)
+    item_by_id = {i.id: i for i in items}
+    bed_sizes = crud.list_bed_sizes(db)
+    size_by_id = {s.id: s for s in bed_sizes}
+
+    brands = crud.list_foam_brands(db)
+    brand_by_id = {b.id: b for b in brands}
+    models = crud.list_foam_models(db, brand_id=None)
+    model_by_id = {m.id: m for m in models}
+    thicknesses = crud.list_thicknesses(db)
+    thick_by_id = {t.id: t for t in thicknesses}
+
+    ctx = common_context(request)
+    ctx.update(
+        {
+            "furniture": f_low,
+            "foam": foam_low,
+            "item_by_id": item_by_id,
+            "size_by_id": size_by_id,
+            "model_by_id": model_by_id,
+            "brand_by_id": brand_by_id,
+            "thick_by_id": thick_by_id,
+        }
+    )
+    return TEMPLATES.TemplateResponse("inventory_low_stock.html", ctx)
 
 
 @app.get("/add", response_class=HTMLResponse)

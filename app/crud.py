@@ -5,7 +5,20 @@ import datetime as dt
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
-from .models import Employee, Transaction, WeeklyAssignment
+from .models import (
+    BedSize,
+    Employee,
+    FoamBrand,
+    FoamModel,
+    FoamThickness,
+    FoamVariant,
+    FurnitureItem,
+    FurnitureVariant,
+    InventoryCategory,
+    StockMovement,
+    Transaction,
+    WeeklyAssignment,
+)
 
 
 def create_transaction(
@@ -390,15 +403,403 @@ def distinct_names(db: Session, *, limit: int = 200) -> list[str]:
     return [r[0] for r in rows if r[0]]
 
 
-def distinct_categories(db: Session, *, limit: int = 200) -> list[str]:
+def ensure_inventory_seed(db: Session) -> None:
+    furniture_root = _upsert_category(db, type="FURNITURE", parent_id=None, name="Furniture")
+    foam_root = _upsert_category(db, type="FOAM", parent_id=None, name="Foam")
+
+    bed_sets = _upsert_category(db, type="FURNITURE", parent_id=furniture_root.id, name="Bed Sets")
+
+    for name in [
+        "Single Beds",
+        "Double Beds",
+        "Almari (Wardrobe)",
+        "Showcase (Shokais)",
+        "Side Table",
+        "Dressing Table",
+    ]:
+        _upsert_category(db, type="FURNITURE", parent_id=furniture_root.id, name=name)
+
+    for name in ["Cushion Bed Set", "Tahli Bed Set", "Kicker + V-Board Bed Set", "Other Custom Bed Sets"]:
+        _upsert_category(db, type="FURNITURE", parent_id=bed_sets.id, name=name)
+
+    _upsert_category(db, type="FOAM", parent_id=foam_root.id, name="Mattress / Foam Inventory")
+
+    _upsert_bed_size(db, label="Single Bed (42×78)", width_in=42, length_in=78, width_ft_x100=350, length_ft_x100=650, sort_order=10)
+    _upsert_bed_size(db, label="Single Slim (39×78)", width_in=39, length_in=78, width_ft_x100=325, length_ft_x100=650, sort_order=20)
+    _upsert_bed_size(db, label="Single Slim (36×72)", width_in=36, length_in=72, width_ft_x100=300, length_ft_x100=600, sort_order=30)
+    _upsert_bed_size(db, label="Double / Queen 1 (60×78)", width_in=60, length_in=78, width_ft_x100=500, length_ft_x100=650, sort_order=40)
+    _upsert_bed_size(db, label="Super Queen / Queen 2 (66×78)", width_in=66, length_in=78, width_ft_x100=550, length_ft_x100=650, sort_order=50)
+    _upsert_bed_size(db, label="King (72×78)", width_in=72, length_in=78, width_ft_x100=600, length_ft_x100=650, sort_order=60)
+    _upsert_bed_size(db, label="King XL (78×84)", width_in=78, length_in=84, width_ft_x100=650, length_ft_x100=700, sort_order=70)
+
+    for i, inches in enumerate([4, 5, 6, 8, 10, 12], start=1):
+        _upsert_thickness(db, inches=inches, sort_order=i)
+
+    brand_ids: dict[str, int] = {}
+    for b in [
+        "Master MoltyFoam",
+        "Diamond Supreme Foam",
+        "DuraFoam",
+        "Alkhair Foam",
+        "Unifoam",
+        "Cannon Primax",
+        "Al Shafi Foam",
+        "Bravo",
+        "i-Foam",
+        "Mehran Foam",
+    ]:
+        brand_ids[b] = _upsert_foam_brand(db, name=b).id
+
+    _upsert_foam_model(db, brand_id=brand_ids["Master MoltyFoam"], name="MoltyOrtho")
+    _upsert_foam_model(db, brand_id=brand_ids["Master MoltyFoam"], name="MoltySpring")
+    _upsert_foam_model(db, brand_id=brand_ids["Master MoltyFoam"], name="Celeste")
+    _upsert_foam_model(db, brand_id=brand_ids["Diamond Supreme Foam"], name="Supreme Series")
+    _upsert_foam_model(db, brand_id=brand_ids["Diamond Supreme Foam"], name="Mr. Foam")
+    _upsert_foam_model(db, brand_id=brand_ids["Unifoam"], name="Shaheen Foam")
+    _upsert_foam_model(db, brand_id=brand_ids["Unifoam"], name="Dream Foam – Road Roller Quality")
+    _upsert_foam_model(db, brand_id=brand_ids["Cannon Primax"], name="Primax")
+    _upsert_foam_model(db, brand_id=brand_ids["Cannon Primax"], name="Primax Bachat")
+    _upsert_foam_model(db, brand_id=brand_ids["Bravo"], name="Executive")
+    _upsert_foam_model(db, brand_id=brand_ids["Bravo"], name="Luxury Series")
+
+
+def _upsert_category(db: Session, *, type: str, parent_id: int | None, name: str) -> InventoryCategory:
+    stmt = select(InventoryCategory).where(
+        InventoryCategory.type == type,
+        InventoryCategory.parent_id.is_(None) if parent_id is None else InventoryCategory.parent_id == parent_id,
+        func.lower(InventoryCategory.name) == name.lower(),
+    )
+    c = db.execute(stmt).scalar_one_or_none()
+    if c:
+        if not c.is_active:
+            c.is_active = True
+            db.add(c)
+            db.commit()
+            db.refresh(c)
+        return c
+    c = InventoryCategory(type=type, parent_id=parent_id, name=name, is_active=True)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+def _upsert_bed_size(
+    db: Session,
+    *,
+    label: str,
+    width_in: int,
+    length_in: int,
+    width_ft_x100: int | None,
+    length_ft_x100: int | None,
+    sort_order: int,
+) -> BedSize:
+    stmt = select(BedSize).where(BedSize.width_in == width_in, BedSize.length_in == length_in)
+    s = db.execute(stmt).scalar_one_or_none()
+    if s:
+        s.label = label
+        s.width_ft_x100 = width_ft_x100
+        s.length_ft_x100 = length_ft_x100
+        s.sort_order = sort_order
+        s.is_active = True
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+        return s
+    s = BedSize(
+        label=label,
+        width_in=width_in,
+        length_in=length_in,
+        width_ft_x100=width_ft_x100,
+        length_ft_x100=length_ft_x100,
+        sort_order=sort_order,
+        is_active=True,
+    )
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def _upsert_thickness(db: Session, *, inches: int, sort_order: int) -> FoamThickness:
+    stmt = select(FoamThickness).where(FoamThickness.inches == inches)
+    t = db.execute(stmt).scalar_one_or_none()
+    if t:
+        t.sort_order = sort_order
+        t.is_active = True
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        return t
+    t = FoamThickness(inches=inches, sort_order=sort_order, is_active=True)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return t
+
+
+def _upsert_foam_brand(db: Session, *, name: str) -> FoamBrand:
+    stmt = select(FoamBrand).where(func.lower(FoamBrand.name) == name.lower())
+    b = db.execute(stmt).scalar_one_or_none()
+    if b:
+        if not b.is_active:
+            b.is_active = True
+            db.add(b)
+            db.commit()
+            db.refresh(b)
+        return b
+    b = FoamBrand(name=name, is_active=True)
+    db.add(b)
+    db.commit()
+    db.refresh(b)
+    return b
+
+
+def _upsert_foam_model(db: Session, *, brand_id: int, name: str) -> FoamModel:
+    stmt = select(FoamModel).where(FoamModel.brand_id == brand_id, func.lower(FoamModel.name) == name.lower())
+    m = db.execute(stmt).scalar_one_or_none()
+    if m:
+        if not m.is_active:
+            m.is_active = True
+            db.add(m)
+            db.commit()
+            db.refresh(m)
+        return m
+    m = FoamModel(brand_id=brand_id, name=name, is_active=True)
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def list_inventory_categories(db: Session, *, type: str, parent_id: int | None = None) -> list[InventoryCategory]:
+    stmt = select(InventoryCategory).where(InventoryCategory.is_active.is_(True), InventoryCategory.type == type)
+    if parent_id is None:
+        stmt = stmt.where(InventoryCategory.parent_id.is_(None))
+    else:
+        stmt = stmt.where(InventoryCategory.parent_id == parent_id)
+    stmt = stmt.order_by(InventoryCategory.name.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def list_bed_sizes(db: Session) -> list[BedSize]:
+    stmt = select(BedSize).where(BedSize.is_active.is_(True)).order_by(BedSize.sort_order.asc(), BedSize.width_in.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def list_thicknesses(db: Session) -> list[FoamThickness]:
+    stmt = select(FoamThickness).where(FoamThickness.is_active.is_(True)).order_by(FoamThickness.sort_order.asc(), FoamThickness.inches.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def list_foam_brands(db: Session) -> list[FoamBrand]:
+    stmt = select(FoamBrand).where(FoamBrand.is_active.is_(True)).order_by(FoamBrand.name.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def list_foam_models(db: Session, *, brand_id: int | None = None) -> list[FoamModel]:
+    stmt = select(FoamModel).where(FoamModel.is_active.is_(True))
+    if brand_id is not None:
+        stmt = stmt.where(FoamModel.brand_id == brand_id)
+    stmt = stmt.order_by(FoamModel.brand_id.asc(), FoamModel.name.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def create_furniture_item(
+    db: Session,
+    *,
+    name: str,
+    sku: str,
+    material_type: str,
+    color_finish: str | None,
+    status: str,
+    category_id: int,
+    sub_category_id: int | None,
+    notes: str | None,
+) -> FurnitureItem:
+    item = FurnitureItem(
+        name=name,
+        sku=sku,
+        material_type=material_type,
+        color_finish=color_finish,
+        status=status,
+        category_id=category_id,
+        sub_category_id=sub_category_id,
+        notes=notes,
+        is_active=True,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def list_furniture_items(db: Session, *, q: str | None = None, limit: int = 200) -> list[FurnitureItem]:
+    stmt = select(FurnitureItem).where(FurnitureItem.is_active.is_(True)).order_by(FurnitureItem.id.desc())
+    if q:
+        stmt = stmt.where(func.lower(FurnitureItem.name).like(f"%{q.lower()}%"))
+    stmt = stmt.limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def list_furniture_variants(db: Session, *, furniture_item_id: int) -> list[FurnitureVariant]:
+    stmt = select(FurnitureVariant).where(FurnitureVariant.furniture_item_id == furniture_item_id, FurnitureVariant.is_active.is_(True)).order_by(FurnitureVariant.bed_size_id.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def upsert_furniture_variant(
+    db: Session,
+    *,
+    furniture_item_id: int,
+    bed_size_id: int | None,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    reorder_level: int,
+) -> FurnitureVariant:
+    stmt = select(FurnitureVariant).where(FurnitureVariant.furniture_item_id == furniture_item_id)
+    if bed_size_id is None:
+        stmt = stmt.where(FurnitureVariant.bed_size_id.is_(None))
+    else:
+        stmt = stmt.where(FurnitureVariant.bed_size_id == bed_size_id)
+    v = db.execute(stmt).scalar_one_or_none()
+    if v:
+        v.qty_on_hand = qty_on_hand
+        v.cost_price_pkr = cost_price_pkr
+        v.sale_price_pkr = sale_price_pkr
+        v.reorder_level = reorder_level
+        v.is_active = True
+        db.add(v)
+        db.commit()
+        db.refresh(v)
+        return v
+    v = FurnitureVariant(
+        furniture_item_id=furniture_item_id,
+        bed_size_id=bed_size_id,
+        qty_on_hand=qty_on_hand,
+        cost_price_pkr=cost_price_pkr,
+        sale_price_pkr=sale_price_pkr,
+        reorder_level=reorder_level,
+        is_active=True,
+    )
+    db.add(v)
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+def create_foam_model(db: Session, *, brand_id: int, name: str, notes: str | None) -> FoamModel:
+    m = FoamModel(brand_id=brand_id, name=name, notes=notes, is_active=True)
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def list_foam_variants(db: Session, *, foam_model_id: int) -> list[FoamVariant]:
+    stmt = select(FoamVariant).where(FoamVariant.foam_model_id == foam_model_id, FoamVariant.is_active.is_(True)).order_by(FoamVariant.bed_size_id.asc(), FoamVariant.thickness_id.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def upsert_foam_variant(
+    db: Session,
+    *,
+    foam_model_id: int,
+    bed_size_id: int,
+    thickness_id: int,
+    density_type: str | None,
+    qty_on_hand: int,
+    purchase_cost_pkr: int,
+    sale_price_pkr: int,
+    reorder_level: int,
+) -> FoamVariant:
+    stmt = select(FoamVariant).where(
+        FoamVariant.foam_model_id == foam_model_id,
+        FoamVariant.bed_size_id == bed_size_id,
+        FoamVariant.thickness_id == thickness_id,
+    )
+    v = db.execute(stmt).scalar_one_or_none()
+    if v:
+        v.density_type = density_type
+        v.qty_on_hand = qty_on_hand
+        v.purchase_cost_pkr = purchase_cost_pkr
+        v.sale_price_pkr = sale_price_pkr
+        v.reorder_level = reorder_level
+        v.is_active = True
+        db.add(v)
+        db.commit()
+        db.refresh(v)
+        return v
+    v = FoamVariant(
+        foam_model_id=foam_model_id,
+        bed_size_id=bed_size_id,
+        thickness_id=thickness_id,
+        density_type=density_type,
+        qty_on_hand=qty_on_hand,
+        purchase_cost_pkr=purchase_cost_pkr,
+        sale_price_pkr=sale_price_pkr,
+        reorder_level=reorder_level,
+        is_active=True,
+    )
+    db.add(v)
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+def adjust_stock(
+    db: Session,
+    *,
+    inventory_type: str,
+    variant_id: int,
+    movement_type: str,
+    qty_change: int,
+    unit_cost_pkr: int | None,
+    notes: str | None,
+) -> StockMovement:
+    mv = StockMovement(
+        inventory_type=inventory_type,
+        variant_id=variant_id,
+        movement_type=movement_type,
+        qty_change=qty_change,
+        unit_cost_pkr=unit_cost_pkr,
+        notes=notes,
+    )
+    db.add(mv)
+
+    if inventory_type == "FURNITURE_VARIANT":
+        v = db.execute(select(FurnitureVariant).where(FurnitureVariant.id == variant_id)).scalar_one()
+        v.qty_on_hand = int(v.qty_on_hand or 0) + int(qty_change)
+        db.add(v)
+    elif inventory_type == "FOAM_VARIANT":
+        v = db.execute(select(FoamVariant).where(FoamVariant.id == variant_id)).scalar_one()
+        v.qty_on_hand = int(v.qty_on_hand or 0) + int(qty_change)
+        db.add(v)
+
+    db.commit()
+    db.refresh(mv)
+    return mv
+
+
+def low_stock_furniture(db: Session, *, limit: int = 200) -> list[FurnitureVariant]:
     stmt = (
-        select(func.min(Transaction.category))
-        .where(Transaction.is_deleted.is_(False))
-        .where(Transaction.category.is_not(None))
-        .where(func.length(func.trim(Transaction.category)) > 0)
-        .group_by(func.lower(Transaction.category))
-        .order_by(func.lower(Transaction.category))
+        select(FurnitureVariant)
+        .where(FurnitureVariant.is_active.is_(True))
+        .where(FurnitureVariant.reorder_level > 0)
+        .order_by(FurnitureVariant.qty_on_hand.asc(), FurnitureVariant.id.asc())
         .limit(limit)
     )
-    rows = db.execute(stmt).all()
-    return [r[0] for r in rows if r[0]]
+    rows = list(db.execute(stmt).scalars().all())
+    return [v for v in rows if int(v.qty_on_hand or 0) <= int(v.reorder_level or 0)]
+
+
+def low_stock_foam(db: Session, *, limit: int = 200) -> list[FoamVariant]:
+    stmt = (
+        select(FoamVariant)
+        .where(FoamVariant.is_active.is_(True))
+        .where(FoamVariant.reorder_level > 0)
+        .order_by(FoamVariant.qty_on_hand.asc(), FoamVariant.id.asc())
+        .limit(limit)
+    )
+    rows = list(db.execute(stmt).scalars().all())
+    return [v for v in rows if int(v.qty_on_hand or 0) <= int(v.reorder_level or 0)]

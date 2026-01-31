@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h3 class="mb-0">Foam Model</h3>
+      <div class="text-muted">Manage size + thickness variants for stock and pricing</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="/inventory/foam">Back</a>
+      <a class="btn btn-outline-danger" href="/inventory/low-stock">Low Stock</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="mb-1">{{ selected.name }}</h5>
+          <div class="text-muted mb-3">Brand ID: {{ selected.brand_id }}</div>
+
+          <form method="post" action="/inventory/foam/{{ selected.id }}/variants" class="row g-2">
+            <div class="col-12">
+              <label class="form-label">Bed Size</label>
+              <select class="form-select" name="bed_size_id">
+                {% for s in bed_sizes %}
+                  <option value="{{ s.id }}">{{ s.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Thickness</label>
+              <select class="form-select" name="thickness_id">
+                {% for t in thicknesses %}
+                  <option value="{{ t.id }}">{{ t.inches }}\"</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Density / Type (optional)</label>
+              <input class="form-control" name="density_type" placeholder="Optional" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Qty</label>
+              <input class="form-control" type="number" name="qty_on_hand" value="0" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Reorder Level</label>
+              <input class="form-control" type="number" name="reorder_level" value="0" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Purchase Cost (PKR)</label>
+              <input class="form-control" type="number" name="purchase_cost_pkr" value="0" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Sale Price (PKR)</label>
+              <input class="form-control" type="number" name="sale_price_pkr" value="0" />
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary" type="submit">Save Variant</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="mb-3">Variants</h5>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Size</th>
+                  <th>Thickness</th>
+                  <th class="text-end">Qty</th>
+                  <th class="text-end">Cost</th>
+                  <th class="text-end">Sale</th>
+                  <th class="text-end">Reorder</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in variants %}
+                  <tr>
+                    <td>{{ v.bed_size_id }}</td>
+                    <td>{{ v.thickness_id }}</td>
+                    <td class="text-end">{{ v.qty_on_hand }}</td>
+                    <td class="text-end">{{ v.purchase_cost_pkr }}</td>
+                    <td class="text-end">{{ v.sale_price_pkr }}</td>
+                    <td class="text-end">{{ v.reorder_level }}</td>
+                  </tr>
+                {% endfor %}
+                {% if variants|length == 0 %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">No variants yet.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          <div class="form-text mt-3">To update a variant, select the same size+thickness and save with new values.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

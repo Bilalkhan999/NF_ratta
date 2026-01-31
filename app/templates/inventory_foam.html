@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h3 class="mb-0">Foam Inventory</h3>
+      <div class="text-muted">Brands → Models → Size/Thickness variants</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="/inventory">Back</a>
+      <a class="btn btn-outline-danger" href="/inventory/low-stock">Low Stock</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="mb-3">Add Foam Model</h5>
+          <form method="post" action="/inventory/foam/models" class="row g-2">
+            <div class="col-12">
+              <label class="form-label">Brand</label>
+              <select class="form-select" name="brand_id">
+                {% for b in brands %}
+                  <option value="{{ b.id }}">{{ b.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Model / Series</label>
+              <input class="form-control" name="name" placeholder="e.g., MoltyOrtho" />
+              {% if errors.name %}<div class="text-danger small mt-1">{{ errors.name }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <input class="form-control" name="notes" placeholder="Optional" />
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary" type="submit">Save Model</button>
+            </div>
+          </form>
+          <div class="form-text mt-3">After creating model, open it to add variants (size + thickness).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-end gap-2 mb-3">
+            <div>
+              <h5 class="mb-0">Models</h5>
+              <div class="text-muted small">Click a model to manage variants</div>
+            </div>
+            <form method="get" action="/inventory/foam" class="d-flex gap-2">
+              <select class="form-select" name="brand_id">
+                <option value="" {% if brand_id == '' %}selected{% endif %}>All brands</option>
+                {% for b in brands %}
+                  <option value="{{ b.id }}" {% if brand_id|string == b.id|string %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-outline-primary" type="submit">Filter</button>
+            </form>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Brand ID</th>
+                  <th>Model</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in models %}
+                  <tr>
+                    <td>{{ brand_by_id.get(m.brand_id).name if brand_by_id.get(m.brand_id) else m.brand_id }}</td>
+                    <td>{{ m.name }}</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-secondary" href="/inventory/foam/{{ m.id }}">Manage</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+                {% if models|length == 0 %}
+                  <tr><td colspan="3" class="text-center text-muted py-4">No models yet.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

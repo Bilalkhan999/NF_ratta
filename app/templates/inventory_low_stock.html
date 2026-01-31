@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h3 class="mb-0">Low Stock Alerts</h3>
+      <div class="text-muted">Items at or below reorder level</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="/inventory">Back</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="mb-3">Furniture</h5>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Size</th>
+                  <th class="text-end">Qty</th>
+                  <th class="text-end">Reorder</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in furniture %}
+                  <tr>
+                    <td>{{ item_by_id.get(v.furniture_item_id).name if item_by_id.get(v.furniture_item_id) else ('#' ~ v.furniture_item_id) }}</td>
+                    <td>
+                      {% if v.bed_size_id %}
+                        {{ size_by_id.get(v.bed_size_id).label if size_by_id.get(v.bed_size_id) else ('#' ~ v.bed_size_id) }}
+                      {% else %}
+                        (Generic)
+                      {% endif %}
+                    </td>
+                    <td class="text-end">{{ v.qty_on_hand }}</td>
+                    <td class="text-end">{{ v.reorder_level }}</td>
+                  </tr>
+                {% endfor %}
+                {% if furniture|length == 0 %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">No low stock furniture.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="mb-3">Foam</h5>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Size</th>
+                  <th>Thick</th>
+                  <th class="text-end">Qty</th>
+                  <th class="text-end">Reorder</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in foam %}
+                  <tr>
+                    <td>{{ model_by_id.get(v.foam_model_id).name if model_by_id.get(v.foam_model_id) else ('#' ~ v.foam_model_id) }}</td>
+                    <td>{{ size_by_id.get(v.bed_size_id).label if size_by_id.get(v.bed_size_id) else ('#' ~ v.bed_size_id) }}</td>
+                    <td>{{ thick_by_id.get(v.thickness_id).inches if thick_by_id.get(v.thickness_id) else ('#' ~ v.thickness_id) }}\"</td>
+                    <td class="text-end">{{ v.qty_on_hand }}</td>
+                    <td class="text-end">{{ v.reorder_level }}</td>
+                  </tr>
+                {% endfor %}
+                {% if foam|length == 0 %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">No low stock foam.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
