@@ -17,7 +17,13 @@
       <div class="card">
         <div class="card-body">
           <h5 class="mb-1">{{ selected.name }}</h5>
-          <div class="text-muted mb-3">SKU: {{ selected.sku }} • Status: {{ selected.status }}</div>
+          <div class="text-muted mb-2">SKU: {{ selected.sku }} • Status: {{ selected.status }}</div>
+          <div class="text-muted mb-3">
+            Type: {{ type_by_id.get(selected.category_id).name if type_by_id.get(selected.category_id) else selected.category_id }}
+            {% if selected.sub_category_id %}
+              • Sub-Type: {{ subtype_by_id.get(selected.sub_category_id).name if subtype_by_id.get(selected.sub_category_id) else selected.sub_category_id }}
+            {% endif %}
+          </div>
 
           <form method="post" action="/inventory/furniture/{{ selected.id }}/variants" class="row g-2">
             <div class="col-12">

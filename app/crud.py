@@ -407,19 +407,19 @@ def ensure_inventory_seed(db: Session) -> None:
     furniture_root = _upsert_category(db, type="FURNITURE", parent_id=None, name="Furniture")
     foam_root = _upsert_category(db, type="FOAM", parent_id=None, name="Foam")
 
-    bed_sets = _upsert_category(db, type="FURNITURE", parent_id=furniture_root.id, name="Bed Sets")
+    bed_sets = _upsert_category(db, type="FURNITURE", parent_id=furniture_root.id, name="Bed Set")
 
     for name in [
-        "Single Beds",
-        "Double Beds",
-        "Almari (Wardrobe)",
-        "Showcase (Shokais)",
+        "Single Bed",
+        "Double Bed",
+        "Almari",
+        "Showcase",
         "Side Table",
         "Dressing Table",
     ]:
         _upsert_category(db, type="FURNITURE", parent_id=furniture_root.id, name=name)
 
-    for name in ["Cushion Bed Set", "Tahli Bed Set", "Kicker + V-Board Bed Set", "Other Custom Bed Sets"]:
+    for name in ["Cushion Bed Set", "Tahli Bed Set", "Kicker + V-Board", "Other"]:
         _upsert_category(db, type="FURNITURE", parent_id=bed_sets.id, name=name)
 
     _upsert_category(db, type="FOAM", parent_id=foam_root.id, name="Mattress / Foam Inventory")
@@ -431,36 +431,37 @@ def ensure_inventory_seed(db: Session) -> None:
     _upsert_bed_size(db, label="Super Queen / Queen 2 (66×78)", width_in=66, length_in=78, width_ft_x100=550, length_ft_x100=650, sort_order=50)
     _upsert_bed_size(db, label="King (72×78)", width_in=72, length_in=78, width_ft_x100=600, length_ft_x100=650, sort_order=60)
     _upsert_bed_size(db, label="King XL (78×84)", width_in=78, length_in=84, width_ft_x100=650, length_ft_x100=700, sort_order=70)
+    _upsert_bed_size(db, label="Custom Size (manual)", width_in=0, length_in=0, width_ft_x100=None, length_ft_x100=None, sort_order=999)
 
     for i, inches in enumerate([4, 5, 6, 8, 10, 12], start=1):
         _upsert_thickness(db, inches=inches, sort_order=i)
 
     brand_ids: dict[str, int] = {}
     for b in [
-        "Master MoltyFoam",
-        "Diamond Supreme Foam",
-        "DuraFoam",
-        "Alkhair Foam",
-        "Unifoam",
+        "MoltyFoam",
+        "Diamond Supreme",
         "Cannon Primax",
-        "Al Shafi Foam",
-        "Bravo",
+        "Alkhair",
+        "Al Shafi",
+        "DuraFoam",
         "i-Foam",
-        "Mehran Foam",
+        "Mehran",
+        "Unifoam",
+        "Other",
     ]:
         brand_ids[b] = _upsert_foam_brand(db, name=b).id
 
-    _upsert_foam_model(db, brand_id=brand_ids["Master MoltyFoam"], name="MoltyOrtho")
-    _upsert_foam_model(db, brand_id=brand_ids["Master MoltyFoam"], name="MoltySpring")
-    _upsert_foam_model(db, brand_id=brand_ids["Master MoltyFoam"], name="Celeste")
-    _upsert_foam_model(db, brand_id=brand_ids["Diamond Supreme Foam"], name="Supreme Series")
-    _upsert_foam_model(db, brand_id=brand_ids["Diamond Supreme Foam"], name="Mr. Foam")
+    _upsert_foam_model(db, brand_id=brand_ids["MoltyFoam"], name="Master")
+    _upsert_foam_model(db, brand_id=brand_ids["MoltyFoam"], name="Celeste")
+    _upsert_foam_model(db, brand_id=brand_ids["MoltyFoam"], name="Bravo")
+    _upsert_foam_model(db, brand_id=brand_ids["MoltyFoam"], name="MoltyOrtho")
+    _upsert_foam_model(db, brand_id=brand_ids["MoltyFoam"], name="MoltySpring")
+    _upsert_foam_model(db, brand_id=brand_ids["Diamond Supreme"], name="Supreme Series")
+    _upsert_foam_model(db, brand_id=brand_ids["Diamond Supreme"], name="Mr. Foam")
     _upsert_foam_model(db, brand_id=brand_ids["Unifoam"], name="Shaheen Foam")
-    _upsert_foam_model(db, brand_id=brand_ids["Unifoam"], name="Dream Foam – Road Roller Quality")
+    _upsert_foam_model(db, brand_id=brand_ids["Unifoam"], name="Dream Foam")
     _upsert_foam_model(db, brand_id=brand_ids["Cannon Primax"], name="Primax")
     _upsert_foam_model(db, brand_id=brand_ids["Cannon Primax"], name="Primax Bachat")
-    _upsert_foam_model(db, brand_id=brand_ids["Bravo"], name="Executive")
-    _upsert_foam_model(db, brand_id=brand_ids["Bravo"], name="Luxury Series")
 
 
 def _upsert_category(db: Session, *, type: str, parent_id: int | None, name: str) -> InventoryCategory:
@@ -582,6 +583,37 @@ def list_inventory_categories(db: Session, *, type: str, parent_id: int | None =
     return list(db.execute(stmt).scalars().all())
 
 
+def get_inventory_category(db: Session, *, type: str, name: str, parent_id: int | None = None) -> InventoryCategory | None:
+    stmt = select(InventoryCategory).where(
+        InventoryCategory.is_active.is_(True),
+        InventoryCategory.type == type,
+        func.lower(InventoryCategory.name) == name.lower(),
+    )
+    if parent_id is None:
+        stmt = stmt.where(InventoryCategory.parent_id.is_(None))
+    else:
+        stmt = stmt.where(InventoryCategory.parent_id == parent_id)
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def _recompute_furniture_item_status(db: Session, *, furniture_item_id: int) -> None:
+    item = db.execute(select(FurnitureItem).where(FurnitureItem.id == furniture_item_id)).scalar_one_or_none()
+    if not item:
+        return
+    if (item.status or "").upper() == "MADE_TO_ORDER":
+        return
+    total_qty = db.execute(
+        select(func.coalesce(func.sum(FurnitureVariant.qty_on_hand), 0)).where(
+            FurnitureVariant.is_active.is_(True),
+            FurnitureVariant.furniture_item_id == furniture_item_id,
+        )
+    ).scalar_one()
+    total_qty_int = int(total_qty or 0)
+    item.status = "OUT_OF_STOCK" if total_qty_int <= 0 else "IN_STOCK"
+    db.add(item)
+    db.commit()
+
+
 def list_bed_sizes(db: Session) -> list[BedSize]:
     stmt = select(BedSize).where(BedSize.is_active.is_(True)).order_by(BedSize.sort_order.asc(), BedSize.width_in.asc())
     return list(db.execute(stmt).scalars().all())
@@ -672,6 +704,7 @@ def upsert_furniture_variant(
         db.add(v)
         db.commit()
         db.refresh(v)
+        _recompute_furniture_item_status(db, furniture_item_id=furniture_item_id)
         return v
     v = FurnitureVariant(
         furniture_item_id=furniture_item_id,
@@ -685,6 +718,7 @@ def upsert_furniture_variant(
     db.add(v)
     db.commit()
     db.refresh(v)
+    _recompute_furniture_item_status(db, furniture_item_id=furniture_item_id)
     return v
 
 
@@ -775,9 +809,16 @@ def adjust_stock(
         v = db.execute(select(FoamVariant).where(FoamVariant.id == variant_id)).scalar_one()
         v.qty_on_hand = int(v.qty_on_hand or 0) + int(qty_change)
         db.add(v)
-
     db.commit()
     db.refresh(mv)
+
+    if inventory_type == "FURNITURE_VARIANT":
+        try:
+            v = db.execute(select(FurnitureVariant).where(FurnitureVariant.id == variant_id)).scalar_one_or_none()
+            if v:
+                _recompute_furniture_item_status(db, furniture_item_id=v.furniture_item_id)
+        except Exception:
+            pass
     return mv
 
 
@@ -785,21 +826,39 @@ def low_stock_furniture(db: Session, *, limit: int = 200) -> list[FurnitureVaria
     stmt = (
         select(FurnitureVariant)
         .where(FurnitureVariant.is_active.is_(True))
-        .where(FurnitureVariant.reorder_level > 0)
         .order_by(FurnitureVariant.qty_on_hand.asc(), FurnitureVariant.id.asc())
         .limit(limit)
     )
     rows = list(db.execute(stmt).scalars().all())
-    return [v for v in rows if int(v.qty_on_hand or 0) <= int(v.reorder_level or 0)]
+    out: list[FurnitureVariant] = []
+    for v in rows:
+        qty = int(v.qty_on_hand or 0)
+        rl = int(v.reorder_level or 0)
+        if rl > 0:
+            if qty <= rl:
+                out.append(v)
+        else:
+            if qty < 3:
+                out.append(v)
+    return out
 
 
 def low_stock_foam(db: Session, *, limit: int = 200) -> list[FoamVariant]:
     stmt = (
         select(FoamVariant)
         .where(FoamVariant.is_active.is_(True))
-        .where(FoamVariant.reorder_level > 0)
         .order_by(FoamVariant.qty_on_hand.asc(), FoamVariant.id.asc())
         .limit(limit)
     )
     rows = list(db.execute(stmt).scalars().all())
-    return [v for v in rows if int(v.qty_on_hand or 0) <= int(v.reorder_level or 0)]
+    out: list[FoamVariant] = []
+    for v in rows:
+        qty = int(v.qty_on_hand or 0)
+        rl = int(v.reorder_level or 0)
+        if rl > 0:
+            if qty <= rl:
+                out.append(v)
+        else:
+            if qty < 3:
+                out.append(v)
+    return out

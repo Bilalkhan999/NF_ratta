@@ -986,12 +986,36 @@ def inventory_dashboard(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/inventory/furniture", response_class=HTMLResponse)
 def inventory_furniture(request: Request, db: Session = Depends(get_db), q: str | None = None):
-    categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+    furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
+    categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=furniture_root.id) if furniture_root else []
+    allowed_types = {"Bed Set", "Single Bed", "Double Bed", "Almari", "Showcase", "Side Table", "Dressing Table"}
+    categories = [c for c in categories if (c.name or "") in allowed_types]
+
+    bed_set_cat = crud.get_inventory_category(db, type="FURNITURE", name="Bed Set", parent_id=(furniture_root.id if furniture_root else None))
+    bed_set_subtypes = crud.list_inventory_categories(db, type="FURNITURE", parent_id=bed_set_cat.id) if bed_set_cat else []
+    allowed_subtypes = {"Cushion Bed Set", "Tahli Bed Set", "Kicker + V-Board", "Other"}
+    bed_set_subtypes = [s for s in bed_set_subtypes if (s.name or "") in allowed_subtypes]
+
     bed_sizes = crud.list_bed_sizes(db)
     items = crud.list_furniture_items(db, q=q, limit=200)
 
+    type_by_id = {c.id: c for c in categories}
+    subtype_by_id = {s.id: s for s in bed_set_subtypes}
+
     ctx = common_context(request)
-    ctx.update({"categories": categories, "bed_sizes": bed_sizes, "items": items, "q": q or "", "errors": {}})
+    ctx.update(
+        {
+            "categories": categories,
+            "bed_set_subtypes": bed_set_subtypes,
+            "bed_set_category_id": bed_set_cat.id if bed_set_cat else None,
+            "type_by_id": type_by_id,
+            "subtype_by_id": subtype_by_id,
+            "bed_sizes": bed_sizes,
+            "items": items,
+            "q": q or "",
+            "errors": {},
+        }
+    )
     return TEMPLATES.TemplateResponse("inventory_furniture.html", ctx)
 
 
@@ -1015,12 +1039,33 @@ def inventory_furniture_post(
         errors["sku"] = "SKU is required."
     if status not in {"IN_STOCK", "OUT_OF_STOCK", "MADE_TO_ORDER"}:
         errors["status"] = "Invalid status."
+
+    furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
+    bed_set_cat = crud.get_inventory_category(db, type="FURNITURE", name="Bed Set", parent_id=(furniture_root.id if furniture_root else None))
+    if bed_set_cat and int(category_id) == int(bed_set_cat.id) and not sub_category_id:
+        errors["sub_category_id"] = "Bed Set sub-type is required."
+
     if errors:
-        categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+        categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=(furniture_root.id if furniture_root else None)) if furniture_root else []
+        bed_set_subtypes = crud.list_inventory_categories(db, type="FURNITURE", parent_id=bed_set_cat.id) if bed_set_cat else []
+        type_by_id = {c.id: c for c in categories}
+        subtype_by_id = {s.id: s for s in bed_set_subtypes}
         bed_sizes = crud.list_bed_sizes(db)
         items = crud.list_furniture_items(db, q=None, limit=200)
         ctx = common_context(request)
-        ctx.update({"categories": categories, "bed_sizes": bed_sizes, "items": items, "q": "", "errors": errors})
+        ctx.update(
+            {
+                "categories": categories,
+                "bed_set_subtypes": bed_set_subtypes,
+                "bed_set_category_id": bed_set_cat.id if bed_set_cat else None,
+                "type_by_id": type_by_id,
+                "subtype_by_id": subtype_by_id,
+                "bed_sizes": bed_sizes,
+                "items": items,
+                "q": "",
+                "errors": errors,
+            }
+        )
         return TEMPLATES.TemplateResponse("inventory_furniture.html", ctx, status_code=400)
 
     item = crud.create_furniture_item(
@@ -1045,11 +1090,21 @@ def inventory_furniture_item(request: Request, item_id: int, db: Session = Depen
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
 
-    categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+    furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
+    categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=(furniture_root.id if furniture_root else None)) if furniture_root else []
+    allowed_types = {"Bed Set", "Single Bed", "Double Bed", "Almari", "Showcase", "Side Table", "Dressing Table"}
+    categories = [c for c in categories if (c.name or "") in allowed_types]
+    bed_set_cat = crud.get_inventory_category(db, type="FURNITURE", name="Bed Set", parent_id=(furniture_root.id if furniture_root else None))
+    bed_set_subtypes = crud.list_inventory_categories(db, type="FURNITURE", parent_id=bed_set_cat.id) if bed_set_cat else []
+    allowed_subtypes = {"Cushion Bed Set", "Tahli Bed Set", "Kicker + V-Board", "Other"}
+    bed_set_subtypes = [s for s in bed_set_subtypes if (s.name or "") in allowed_subtypes]
+
     bed_sizes = crud.list_bed_sizes(db)
     variants = crud.list_furniture_variants(db, furniture_item_id=item_id)
 
     size_by_id = {s.id: s for s in bed_sizes}
+    type_by_id = {c.id: c for c in categories}
+    subtype_by_id = {s.id: s for s in bed_set_subtypes}
     existing_by_size: dict[int | None, object] = {}
     for v in variants:
         existing_by_size[v.bed_size_id] = v
@@ -1058,6 +1113,10 @@ def inventory_furniture_item(request: Request, item_id: int, db: Session = Depen
     ctx.update(
         {
             "categories": categories,
+            "bed_set_subtypes": bed_set_subtypes,
+            "bed_set_category_id": bed_set_cat.id if bed_set_cat else None,
+            "type_by_id": type_by_id,
+            "subtype_by_id": subtype_by_id,
             "bed_sizes": bed_sizes,
             "items": items,
             "selected": item,

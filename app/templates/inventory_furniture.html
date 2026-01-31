@@ -38,12 +38,23 @@
               {% if errors.status %}<div class="text-danger small mt-1">{{ errors.status }}</div>{% endif %}
             </div>
             <div class="col-12">
-              <label class="form-label">Category</label>
-              <select class="form-select" name="category_id">
+              <label class="form-label">Furniture Type</label>
+              <select class="form-select" name="category_id" id="furnitureType" data-bed-set-id="{{ bed_set_category_id or '' }}">
                 {% for c in categories %}
                   <option value="{{ c.id }}">{{ c.name }}</option>
                 {% endfor %}
               </select>
+            </div>
+
+            <div class="col-12" id="bedSetSubtypeWrap">
+              <label class="form-label">Bed Set Sub-Type</label>
+              <select class="form-select" name="sub_category_id" id="bedSetSubtype">
+                <option value="">Select sub-type</option>
+                {% for s in bed_set_subtypes %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+              {% if errors.sub_category_id %}<div class="text-danger small mt-1">{{ errors.sub_category_id }}</div>{% endif %}
             </div>
             <div class="col-12">
               <label class="form-label">Material Type</label>
@@ -57,10 +68,6 @@
             <div class="col-12 col-md-6">
               <label class="form-label">Color / Finish</label>
               <input class="form-control" name="color_finish" placeholder="e.g., Walnut" />
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label">Sub Category ID (optional)</label>
-              <input class="form-control" type="number" name="sub_category_id" placeholder="Optional" />
             </div>
             <div class="col-12">
               <label class="form-label">Notes</label>
@@ -95,6 +102,8 @@
                 <tr>
                   <th>Name</th>
                   <th>SKU</th>
+                  <th>Type</th>
+                  <th>Sub-Type</th>
                   <th>Status</th>
                   <th class="text-end">Action</th>
                 </tr>
@@ -104,6 +113,14 @@
                   <tr>
                     <td>{{ it.name }}</td>
                     <td>{{ it.sku }}</td>
+                    <td>{{ type_by_id.get(it.category_id).name if type_by_id.get(it.category_id) else it.category_id }}</td>
+                    <td>
+                      {% if it.sub_category_id %}
+                        {{ subtype_by_id.get(it.sub_category_id).name if subtype_by_id.get(it.sub_category_id) else it.sub_category_id }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
                     <td><span class="badge text-bg-secondary">{{ it.status }}</span></td>
                     <td class="text-end">
                       <a class="btn btn-sm btn-outline-secondary" href="/inventory/furniture/{{ it.id }}">Manage</a>
@@ -111,7 +128,7 @@
                   </tr>
                 {% endfor %}
                 {% if items|length == 0 %}
-                  <tr><td colspan="4" class="text-center text-muted py-4">No items yet.</td></tr>
+                  <tr><td colspan="6" class="text-center text-muted py-4">No items yet.</td></tr>
                 {% endif %}
               </tbody>
             </table>
