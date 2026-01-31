@@ -1,22 +1,108 @@
-{% extends "base.html" %}
+{% extends "inventory_base.html" %}
 
-{% block content %}
+{% block inventory_content %}
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
-      <h3 class="mb-0">Foam Inventory</h3>
-      <div class="text-muted">Brands → Models → Size/Thickness variants</div>
+      <h3 class="mb-0">Foam</h3>
+      <div class="text-muted">Search by model and filter by brand</div>
     </div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary" href="/inventory">Back</a>
-      <a class="btn btn-outline-danger" href="/inventory/low-stock">Low Stock</a>
-    </div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addFoamModal">+ Add Foam Model</button>
   </div>
 
+  <form method="get" action="/inventory/foam" class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-7">
+          <label class="form-label">Search</label>
+          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Search foam..." />
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Brand</label>
+          <select class="form-select" name="brand_id">
+            <option value="">All Brands</option>
+            {% for b in brands %}
+              <option value="{{ b.id }}" {% if filters.brand_id|string == b.id|string %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <button class="btn btn-outline-primary w-100" type="submit">Filter</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
   <div class="row g-3">
-    <div class="col-12 col-lg-5">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="mb-3">Add Foam Model</h5>
+    {% for c in cards %}
+      {% set badge = c.badge %}
+      {% if badge == 'In Stock' %}
+        {% set badge_class = 'text-bg-success' %}
+      {% elif badge == 'Low Stock' %}
+        {% set badge_class = 'text-bg-warning' %}
+      {% else %}
+        {% set badge_class = 'text-bg-danger' %}
+      {% endif %}
+
+      <div class="col-12 col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">{{ c.brand.name }}</div>
+                <div class="text-muted small">{{ c.model.name }}</div>
+                <div class="text-muted small">{{ c.size.label }}</div>
+              </div>
+              <span class="badge {{ badge_class }}">{{ badge }}</span>
+            </div>
+
+            <div class="row mt-3 g-2">
+              <div class="col-6">
+                <div class="text-muted small">Dimensions</div>
+                <div class="fw-bold">{{ c.size.width_in }}" × {{ c.size.length_in }}"</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Thickness</div>
+                <div class="fw-bold">{{ c.thickness.inches }}"</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Quantity</div>
+                <div class="fw-bold">{{ c.variant.qty_on_hand }}</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Purchase</div>
+                <div class="fw-bold">Rs. {{ c.variant.purchase_cost_pkr }}</div>
+              </div>
+              <div class="col-12">
+                <div class="text-muted small">Selling</div>
+                <div class="fw-bold text-danger">Rs. {{ c.variant.sale_price_pkr }}</div>
+              </div>
+            </div>
+
+            <div class="d-grid mt-3">
+              <a class="btn btn-outline-secondary" href="/inventory/foam/{{ c.model.id }}">Adjust Stock</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if cards|length == 0 %}
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body text-center text-muted py-5">No foam variants found.</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="modal fade" id="addFoamModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Foam Model</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
           <form method="post" action="/inventory/foam/models" class="row g-2">
             <div class="col-12">
               <label class="form-label">Brand</label>
@@ -36,58 +122,10 @@
               <input class="form-control" name="notes" placeholder="Optional" />
             </div>
             <div class="col-12">
-              <button class="btn btn-primary" type="submit">Save Model</button>
+              <button class="btn btn-primary" type="submit">Save</button>
+              <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
             </div>
           </form>
-          <div class="form-text mt-3">After creating model, open it to add variants (size + thickness).</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-7">
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-end gap-2 mb-3">
-            <div>
-              <h5 class="mb-0">Models</h5>
-              <div class="text-muted small">Click a model to manage variants</div>
-            </div>
-            <form method="get" action="/inventory/foam" class="d-flex gap-2">
-              <select class="form-select" name="brand_id">
-                <option value="" {% if brand_id == '' %}selected{% endif %}>All brands</option>
-                {% for b in brands %}
-                  <option value="{{ b.id }}" {% if brand_id|string == b.id|string %}selected{% endif %}>{{ b.name }}</option>
-                {% endfor %}
-              </select>
-              <button class="btn btn-outline-primary" type="submit">Filter</button>
-            </form>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>Brand ID</th>
-                  <th>Model</th>
-                  <th class="text-end">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for m in models %}
-                  <tr>
-                    <td>{{ brand_by_id.get(m.brand_id).name if brand_by_id.get(m.brand_id) else m.brand_id }}</td>
-                    <td>{{ m.name }}</td>
-                    <td class="text-end">
-                      <a class="btn btn-sm btn-outline-secondary" href="/inventory/foam/{{ m.id }}">Manage</a>
-                    </td>
-                  </tr>
-                {% endfor %}
-                {% if models|length == 0 %}
-                  <tr><td colspan="3" class="text-center text-muted py-4">No models yet.</td></tr>
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>

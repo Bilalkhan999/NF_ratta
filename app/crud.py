@@ -674,6 +674,117 @@ def list_furniture_items(db: Session, *, q: str | None = None, limit: int = 200)
     return list(db.execute(stmt).scalars().all())
 
 
+def list_furniture_items_filtered(
+    db: Session,
+    *,
+    q: str | None = None,
+    category_id: int | None = None,
+    limit: int = 200,
+) -> list[FurnitureItem]:
+    stmt = select(FurnitureItem).where(FurnitureItem.is_active.is_(True)).order_by(FurnitureItem.id.desc())
+    if category_id is not None:
+        stmt = stmt.where(FurnitureItem.category_id == category_id)
+    if q:
+        stmt = stmt.where(func.lower(FurnitureItem.name).like(f"%{q.lower()}%"))
+    stmt = stmt.limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def furniture_cards(db: Session, *, items: list[FurnitureItem]) -> list[dict]:
+    if not items:
+        return []
+
+    item_ids = [i.id for i in items]
+    variants = list(
+        db.execute(
+            select(FurnitureVariant).where(
+                FurnitureVariant.is_active.is_(True),
+                FurnitureVariant.furniture_item_id.in_(item_ids),
+            )
+        ).scalars().all()
+    )
+
+    by_item: dict[int, list[FurnitureVariant]] = {}
+    for v in variants:
+        by_item.setdefault(v.furniture_item_id, []).append(v)
+
+    out: list[dict] = []
+    for it in items:
+        vs = by_item.get(it.id, [])
+        total_qty = sum(int(v.qty_on_hand or 0) for v in vs)
+        min_cost = min((int(v.cost_price_pkr or 0) for v in vs), default=0)
+        min_sale = min((int(v.sale_price_pkr or 0) for v in vs), default=0)
+        any_low = False
+        for v in vs:
+            qty = int(v.qty_on_hand or 0)
+            rl = int(v.reorder_level or 0)
+            if rl > 0:
+                if qty <= rl:
+                    any_low = True
+                    break
+            else:
+                if qty < 3:
+                    any_low = True
+                    break
+
+        is_mto = (it.status or "").upper() == "MADE_TO_ORDER"
+        is_out = (not is_mto) and total_qty <= 0
+        badge = "Made to Order" if is_mto else ("Out of Stock" if is_out else ("Low Stock" if any_low else "In Stock"))
+
+        out.append(
+            {
+                "item": it,
+                "total_qty": total_qty,
+                "min_cost": min_cost,
+                "min_sale": min_sale,
+                "badge": badge,
+            }
+        )
+    return out
+
+
+def foam_variant_cards(
+    db: Session,
+    *,
+    q: str | None = None,
+    brand_id: int | None = None,
+    limit: int = 200,
+) -> list[dict]:
+    stmt = (
+        select(FoamVariant, FoamModel, FoamBrand, BedSize, FoamThickness)
+        .join(FoamModel, FoamModel.id == FoamVariant.foam_model_id)
+        .join(FoamBrand, FoamBrand.id == FoamModel.brand_id)
+        .join(BedSize, BedSize.id == FoamVariant.bed_size_id)
+        .join(FoamThickness, FoamThickness.id == FoamVariant.thickness_id)
+        .where(FoamVariant.is_active.is_(True), FoamModel.is_active.is_(True), FoamBrand.is_active.is_(True))
+    )
+    if brand_id is not None:
+        stmt = stmt.where(FoamModel.brand_id == brand_id)
+    if q:
+        stmt = stmt.where(func.lower(FoamModel.name).like(f"%{q.lower()}%"))
+    stmt = stmt.order_by(FoamVariant.qty_on_hand.asc(), FoamVariant.id.desc()).limit(limit)
+    rows = list(db.execute(stmt).all())
+
+    out: list[dict] = []
+    for v, model, brand, size, thick in rows:
+        qty = int(v.qty_on_hand or 0)
+        rl = int(v.reorder_level or 0)
+        is_out = qty <= 0
+        is_low = (qty <= rl) if rl > 0 else (qty < 3)
+        badge = "Out of Stock" if is_out else ("Low Stock" if is_low else "In Stock")
+        out.append(
+            {
+                "variant": v,
+                "model": model,
+                "brand": brand,
+                "size": size,
+                "thickness": thick,
+                "badge": badge,
+            }
+        )
+    return out
+
+
 def list_furniture_variants(db: Session, *, furniture_item_id: int) -> list[FurnitureVariant]:
     stmt = select(FurnitureVariant).where(FurnitureVariant.furniture_item_id == furniture_item_id, FurnitureVariant.is_active.is_(True)).order_by(FurnitureVariant.bed_size_id.asc())
     return list(db.execute(stmt).scalars().all())
@@ -841,6 +952,11 @@ def low_stock_furniture(db: Session, *, limit: int = 200) -> list[FurnitureVaria
             if qty < 3:
                 out.append(v)
     return out
+
+
+def list_stock_movements(db: Session, *, limit: int = 200) -> list[StockMovement]:
+    stmt = select(StockMovement).order_by(StockMovement.id.desc()).limit(limit)
+    return list(db.execute(stmt).scalars().all())
 
 
 def low_stock_foam(db: Session, *, limit: int = 200) -> list[FoamVariant]:

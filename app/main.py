@@ -984,8 +984,21 @@ def inventory_dashboard(request: Request, db: Session = Depends(get_db)):
     return TEMPLATES.TemplateResponse("inventory.html", ctx)
 
 
+@app.get("/inventory/stock-transactions", response_class=HTMLResponse)
+def inventory_stock_transactions(request: Request, db: Session = Depends(get_db)):
+    items = crud.list_stock_movements(db, limit=300)
+    ctx = common_context(request)
+    ctx.update({"items": items})
+    return TEMPLATES.TemplateResponse("inventory_stock_transactions.html", ctx)
+
+
 @app.get("/inventory/furniture", response_class=HTMLResponse)
-def inventory_furniture(request: Request, db: Session = Depends(get_db), q: str | None = None):
+def inventory_furniture(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str | None = None,
+    category_id: int | None = None,
+):
     furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
     categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=furniture_root.id) if furniture_root else []
     allowed_types = {"Bed Set", "Single Bed", "Double Bed", "Almari", "Showcase", "Side Table", "Dressing Table"}
@@ -997,7 +1010,8 @@ def inventory_furniture(request: Request, db: Session = Depends(get_db), q: str 
     bed_set_subtypes = [s for s in bed_set_subtypes if (s.name or "") in allowed_subtypes]
 
     bed_sizes = crud.list_bed_sizes(db)
-    items = crud.list_furniture_items(db, q=q, limit=200)
+    items = crud.list_furniture_items_filtered(db, q=q, category_id=category_id, limit=200)
+    cards = crud.furniture_cards(db, items=items)
 
     type_by_id = {c.id: c for c in categories}
     subtype_by_id = {s.id: s for s in bed_set_subtypes}
@@ -1012,7 +1026,8 @@ def inventory_furniture(request: Request, db: Session = Depends(get_db), q: str 
             "subtype_by_id": subtype_by_id,
             "bed_sizes": bed_sizes,
             "items": items,
-            "q": q or "",
+            "cards": cards,
+            "filters": {"q": q or "", "category_id": category_id or ""},
             "errors": {},
         }
     )
@@ -1151,13 +1166,26 @@ def inventory_furniture_variants_post(
 
 
 @app.get("/inventory/foam", response_class=HTMLResponse)
-def inventory_foam(request: Request, db: Session = Depends(get_db), brand_id: int | None = None):
+def inventory_foam(
+    request: Request,
+    db: Session = Depends(get_db),
+    brand_id: int | None = None,
+    q: str | None = None,
+):
     brands = crud.list_foam_brands(db)
     brand_by_id = {b.id: b for b in brands}
-    models = crud.list_foam_models(db, brand_id=brand_id)
+    cards = crud.foam_variant_cards(db, q=q, brand_id=brand_id, limit=200)
 
     ctx = common_context(request)
-    ctx.update({"brands": brands, "brand_by_id": brand_by_id, "models": models, "brand_id": brand_id or "", "errors": {}})
+    ctx.update(
+        {
+            "brands": brands,
+            "brand_by_id": brand_by_id,
+            "cards": cards,
+            "filters": {"brand_id": brand_id or "", "q": q or ""},
+            "errors": {},
+        }
+    )
     return TEMPLATES.TemplateResponse("inventory_foam.html", ctx)
 
 

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="row g-3">
+    <div class="col-12 col-lg-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="fw-bold">Nusrat</div>
+          <div class="text-muted small">Inventory</div>
+          <hr />
+          <div class="nav flex-column nav-pills gap-1">
+            <a class="nav-link {% if request.url.path == '/inventory' %}active{% endif %}" href="/inventory">Dashboard</a>
+            <a class="nav-link {% if request.url.path.startswith('/inventory/furniture') %}active{% endif %}" href="/inventory/furniture">Furniture</a>
+            <a class="nav-link {% if request.url.path.startswith('/inventory/foam') %}active{% endif %}" href="/inventory/foam">Foam</a>
+            <a class="nav-link {% if request.url.path.startswith('/inventory/stock-transactions') %}active{% endif %}" href="/inventory/stock-transactions">Stock Transactions</a>
+            <a class="nav-link {% if request.url.path.startswith('/inventory/low-stock') %}active{% endif %}" href="/inventory/low-stock">Low Stock</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-9">
+      {% block inventory_content %}{% endblock %}
+    </div>
+  </div>
+{% endblock %}

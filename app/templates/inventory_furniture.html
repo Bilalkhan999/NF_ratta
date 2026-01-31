@@ -1,31 +1,137 @@
-{% extends "base.html" %}
+{% extends "inventory_base.html" %}
 
-{% block content %}
+{% block inventory_content %}
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
-      <h3 class="mb-0">Furniture Inventory</h3>
-      <div class="text-muted">Create furniture items, then add size variants</div>
+      <h3 class="mb-0">Furniture</h3>
+      <div class="text-muted">Manage beds, bed sets, wardrobes, showcases, dressing tables</div>
     </div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary" href="/inventory">Back</a>
-      <a class="btn btn-outline-danger" href="/inventory/low-stock">Low Stock</a>
-    </div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addFurnitureModal">+ Add Furniture</button>
   </div>
 
+  <form method="get" action="/inventory/furniture" class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-6">
+          <label class="form-label">Search</label>
+          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Search furniture..." />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Category</label>
+          <select class="form-select" name="category_id">
+            <option value="">All Categories</option>
+            {% for c in categories %}
+              <option value="{{ c.id }}" {% if filters.category_id|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <button class="btn btn-outline-primary w-100" type="submit">Filter</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
   <div class="row g-3">
-    <div class="col-12 col-lg-5">
-      <div class="card">
-        <div class="card-body">
-          <h5 class="mb-3">Add Furniture Item</h5>
+    {% for c in cards %}
+      {% set badge = c.badge %}
+      {% if badge == 'In Stock' %}
+        {% set badge_class = 'text-bg-success' %}
+      {% elif badge == 'Low Stock' %}
+        {% set badge_class = 'text-bg-warning' %}
+      {% elif badge == 'Out of Stock' %}
+        {% set badge_class = 'text-bg-danger' %}
+      {% else %}
+        {% set badge_class = 'text-bg-secondary' %}
+      {% endif %}
+
+      <div class="col-12 col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">{{ c.item.name }}</div>
+                <div class="text-muted small">
+                  {{ type_by_id.get(c.item.category_id).name if type_by_id.get(c.item.category_id) else c.item.category_id }}
+                  {% if c.item.sub_category_id %}
+                    • {{ subtype_by_id.get(c.item.sub_category_id).name if subtype_by_id.get(c.item.sub_category_id) else c.item.sub_category_id }}
+                  {% endif %}
+                </div>
+              </div>
+              <span class="badge {{ badge_class }}">{{ badge }}</span>
+            </div>
+
+            <div class="row mt-3 g-2">
+              <div class="col-6">
+                <div class="text-muted small">Quantity</div>
+                <div class="fw-bold">{{ c.total_qty }}</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Size</div>
+                <div class="fw-bold">Custom Size</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Cost</div>
+                <div class="fw-bold">Rs. {{ c.min_cost }}</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Selling</div>
+                <div class="fw-bold text-danger">Rs. {{ c.min_sale }}</div>
+              </div>
+            </div>
+
+            <div class="d-grid mt-3">
+              <a class="btn btn-outline-secondary" href="/inventory/furniture/{{ c.item.id }}">Adjust Stock</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if cards|length == 0 %}
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body text-center text-muted py-5">No furniture found.</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="modal fade" id="addFurnitureModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Furniture</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
           <form method="post" action="/inventory/furniture" class="row g-2">
             <div class="col-12">
-              <label class="form-label">Item Name</label>
-              <input class="form-control" name="name" placeholder="e.g., Cushion Bed Set" />
+              <label class="form-label">Name</label>
+              <input class="form-control" name="name" placeholder="e.g., King Size Bed Set" />
               {% if errors.name %}<div class="text-danger small mt-1">{{ errors.name }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Category</label>
+              <select class="form-select" name="category_id">
+                {% for c in categories %}
+                  <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Bed Set Sub-Type (only if Bed Set)</label>
+              <select class="form-select" name="sub_category_id">
+                <option value="">Select sub-type</option>
+                {% for s in bed_set_subtypes %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+              {% if errors.sub_category_id %}<div class="text-danger small mt-1">{{ errors.sub_category_id }}</div>{% endif %}
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label">SKU</label>
-              <input class="form-control" name="sku" placeholder="e.g., CBS-001" />
+              <input class="form-control" name="sku" placeholder="Optional code" />
               {% if errors.sku %}<div class="text-danger small mt-1">{{ errors.sku }}</div>{% endif %}
             </div>
             <div class="col-12 col-md-6">
@@ -37,26 +143,7 @@
               </select>
               {% if errors.status %}<div class="text-danger small mt-1">{{ errors.status }}</div>{% endif %}
             </div>
-            <div class="col-12">
-              <label class="form-label">Furniture Type</label>
-              <select class="form-select" name="category_id" id="furnitureType" data-bed-set-id="{{ bed_set_category_id or '' }}">
-                {% for c in categories %}
-                  <option value="{{ c.id }}">{{ c.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-12" id="bedSetSubtypeWrap">
-              <label class="form-label">Bed Set Sub-Type</label>
-              <select class="form-select" name="sub_category_id" id="bedSetSubtype">
-                <option value="">Select sub-type</option>
-                {% for s in bed_set_subtypes %}
-                  <option value="{{ s.id }}">{{ s.name }}</option>
-                {% endfor %}
-              </select>
-              {% if errors.sub_category_id %}<div class="text-danger small mt-1">{{ errors.sub_category_id }}</div>{% endif %}
-            </div>
-            <div class="col-12">
+            <div class="col-12 col-md-6">
               <label class="form-label">Material Type</label>
               <select class="form-select" name="material_type">
                 <option value="Wood">Wood</option>
@@ -67,72 +154,17 @@
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label">Color / Finish</label>
-              <input class="form-control" name="color_finish" placeholder="e.g., Walnut" />
+              <input class="form-control" name="color_finish" placeholder="Optional" />
             </div>
             <div class="col-12">
-              <label class="form-label">Notes</label>
+              <label class="form-label">Notes (Optional)</label>
               <input class="form-control" name="notes" placeholder="Optional" />
             </div>
             <div class="col-12">
-              <button class="btn btn-primary" type="submit">Save Item</button>
+              <button class="btn btn-primary" type="submit">Save</button>
+              <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
             </div>
           </form>
-          <div class="form-text mt-3">After saving, open the item to add size variants (qty/cost/sale).</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-7">
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-end gap-2 mb-3">
-            <div>
-              <h5 class="mb-0">Items</h5>
-              <div class="text-muted small">Click an item to manage variants</div>
-            </div>
-            <form method="get" action="/inventory/furniture" class="d-flex gap-2">
-              <input class="form-control" name="q" value="{{ q }}" placeholder="Search name" />
-              <button class="btn btn-outline-primary" type="submit">Search</button>
-            </form>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>SKU</th>
-                  <th>Type</th>
-                  <th>Sub-Type</th>
-                  <th>Status</th>
-                  <th class="text-end">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for it in items %}
-                  <tr>
-                    <td>{{ it.name }}</td>
-                    <td>{{ it.sku }}</td>
-                    <td>{{ type_by_id.get(it.category_id).name if type_by_id.get(it.category_id) else it.category_id }}</td>
-                    <td>
-                      {% if it.sub_category_id %}
-                        {{ subtype_by_id.get(it.sub_category_id).name if subtype_by_id.get(it.sub_category_id) else it.sub_category_id }}
-                      {% else %}
-                        -
-                      {% endif %}
-                    </td>
-                    <td><span class="badge text-bg-secondary">{{ it.status }}</span></td>
-                    <td class="text-end">
-                      <a class="btn btn-sm btn-outline-secondary" href="/inventory/furniture/{{ it.id }}">Manage</a>
-                    </td>
-                  </tr>
-                {% endfor %}
-                {% if items|length == 0 %}
-                  <tr><td colspan="6" class="text-center text-muted py-4">No items yet.</td></tr>
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>
