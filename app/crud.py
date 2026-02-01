@@ -416,6 +416,10 @@ def ensure_inventory_seed(db: Session) -> None:
         "Showcase",
         "Side Table",
         "Dressing Table",
+        "Sofa",
+        "Hardware",
+        "Poshish Materials",
+        "Kapra",
     ]:
         _upsert_category(db, type="FURNITURE", parent_id=furniture_root.id, name=name)
 
