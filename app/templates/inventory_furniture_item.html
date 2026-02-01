@@ -27,14 +27,14 @@
 
           <form method="post" action="/inventory/furniture/{{ selected.id }}/variants" class="row g-2">
             <div class="col-12">
-              <label class="form-label">Bed Size</label>
+              <label class="form-label">Size / Variant</label>
               <select class="form-select" name="bed_size_id">
                 <option value="">(No size / generic)</option>
                 {% for s in bed_sizes %}
                   <option value="{{ s.id }}">{{ s.label }}</option>
                 {% endfor %}
               </select>
-              <div class="form-text">Choose a size, then set qty and prices.</div>
+              <div class="form-text">Choose a size if applicable, then set qty and prices.</div>
             </div>
             <div class="col-6">
               <label class="form-label">Qty</label>
@@ -53,7 +53,7 @@
               <input class="form-control" type="number" name="sale_price_pkr" value="0" />
             </div>
             <div class="col-12">
-              <button class="btn btn-primary" type="submit">Save Variant</button>
+              <button class="btn btn-accent" type="submit">Save Variant</button>
             </div>
           </form>
         </div>

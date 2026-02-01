@@ -1000,7 +1000,19 @@ def inventory_furniture(
 ):
     furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
     categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=furniture_root.id) if furniture_root else []
-    allowed_types = {"Bed Set", "Single Bed", "Double Bed", "Almari", "Showcase", "Side Table", "Dressing Table"}
+    allowed_types = {
+        "Bed Set",
+        "Single Bed",
+        "Double Bed",
+        "Almari",
+        "Showcase",
+        "Side Table",
+        "Dressing Table",
+        "Sofa",
+        "Hardware",
+        "Poshish Materials",
+        "Kapra",
+    }
     categories = [c for c in categories if (c.name or "") in allowed_types]
 
     bed_set_cat = crud.get_inventory_category(db, type="FURNITURE", name="Bed Set", parent_id=(furniture_root.id if furniture_root else None))
@@ -1137,7 +1149,19 @@ def inventory_furniture_item(request: Request, item_id: int, db: Session = Depen
 
     furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
     categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=(furniture_root.id if furniture_root else None)) if furniture_root else []
-    allowed_types = {"Bed Set", "Single Bed", "Double Bed", "Almari", "Showcase", "Side Table", "Dressing Table"}
+    allowed_types = {
+        "Bed Set",
+        "Single Bed",
+        "Double Bed",
+        "Almari",
+        "Showcase",
+        "Side Table",
+        "Dressing Table",
+        "Sofa",
+        "Hardware",
+        "Poshish Materials",
+        "Kapra",
+    }
     categories = [c for c in categories if (c.name or "") in allowed_types]
     bed_set_cat = crud.get_inventory_category(db, type="FURNITURE", name="Bed Set", parent_id=(furniture_root.id if furniture_root else None))
     bed_set_subtypes = crud.list_inventory_categories(db, type="FURNITURE", parent_id=bed_set_cat.id) if bed_set_cat else []
