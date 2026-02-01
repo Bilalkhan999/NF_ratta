@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select, update as sql_update
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -712,12 +712,25 @@ def furniture_cards(db: Session, *, items: list[FurnitureItem]) -> list[dict]:
     for v in variants:
         by_item.setdefault(v.furniture_item_id, []).append(v)
 
+    bed_sizes = list_bed_sizes(db)
+    bed_size_by_id = {s.id: s for s in bed_sizes}
+
     out: list[dict] = []
     for it in items:
         vs = by_item.get(it.id, [])
         total_qty = sum(int(v.qty_on_hand or 0) for v in vs)
         min_cost = min((int(v.cost_price_pkr or 0) for v in vs), default=0)
         min_sale = min((int(v.sale_price_pkr or 0) for v in vs), default=0)
+
+        size_label = "Custom Size"
+        size_ids = sorted({v.bed_size_id for v in vs if v.bed_size_id is not None})
+        has_custom = any(v.bed_size_id is None for v in vs)
+        if len(size_ids) == 1 and not has_custom:
+            s = bed_size_by_id.get(size_ids[0])
+            size_label = s.label if s else "Custom Size"
+        elif len(size_ids) > 1 and not has_custom:
+            size_label = "Multiple Sizes"
+
         any_low = False
         for v in vs:
             qty = int(v.qty_on_hand or 0)
@@ -739,12 +752,41 @@ def furniture_cards(db: Session, *, items: list[FurnitureItem]) -> list[dict]:
             {
                 "item": it,
                 "total_qty": total_qty,
+                "size_label": size_label,
                 "min_cost": min_cost,
                 "min_sale": min_sale,
                 "badge": badge,
             }
         )
     return out
+
+
+def soft_delete_furniture_item(db: Session, *, item_id: int) -> None:
+    item = db.execute(select(FurnitureItem).where(FurnitureItem.id == item_id)).scalar_one_or_none()
+    if not item:
+        return
+    item.is_active = False
+    db.add(item)
+    db.execute(
+        sql_update(FurnitureVariant)
+        .where(FurnitureVariant.furniture_item_id == item_id)
+        .values(is_active=False)
+    )
+    db.commit()
+
+
+def soft_delete_foam_model(db: Session, *, model_id: int) -> None:
+    m = db.execute(select(FoamModel).where(FoamModel.id == model_id)).scalar_one_or_none()
+    if not m:
+        return
+    m.is_active = False
+    db.add(m)
+    db.execute(
+        sql_update(FoamVariant)
+        .where(FoamVariant.foam_model_id == model_id)
+        .values(is_active=False)
+    )
+    db.commit()
 
 
 def inventory_dashboard_stats(db: Session) -> dict:

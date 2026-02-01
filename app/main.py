@@ -1195,6 +1195,12 @@ def inventory_furniture_variants_post(
     return RedirectResponse(url=f"/inventory/furniture/{item_id}", status_code=303)
 
 
+@app.post("/inventory/furniture/{item_id}/delete", response_class=HTMLResponse)
+def inventory_furniture_delete(item_id: int, db: Session = Depends(get_db)):
+    crud.soft_delete_furniture_item(db, item_id=item_id)
+    return RedirectResponse(url="/inventory/furniture", status_code=303)
+
+
 @app.get("/inventory/foam", response_class=HTMLResponse)
 def inventory_foam(
     request: Request,
@@ -1297,6 +1303,12 @@ def inventory_foam_variant_post(
         reorder_level=int(reorder_level),
     )
     return RedirectResponse(url=f"/inventory/foam/{model_id}", status_code=303)
+
+
+@app.post("/inventory/foam/{model_id}/delete", response_class=HTMLResponse)
+def inventory_foam_model_delete(model_id: int, db: Session = Depends(get_db)):
+    crud.soft_delete_foam_model(db, model_id=model_id)
+    return RedirectResponse(url="/inventory/foam", status_code=303)
 
 
 @app.get("/inventory/low-stock", response_class=HTMLResponse)
