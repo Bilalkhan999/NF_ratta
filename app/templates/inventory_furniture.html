@@ -114,10 +114,16 @@
             <div class="col-12">
               <label class="form-label">Category</label>
               <select class="form-select" name="category_id">
+                <option value="">Select category</option>
                 {% for c in categories %}
                   <option value="{{ c.id }}">{{ c.name }}</option>
                 {% endfor %}
               </select>
+              {% if errors.category_id %}<div class="text-danger small mt-1">{{ errors.category_id }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Or add new category</label>
+              <input class="form-control" name="category_name" placeholder="e.g., Center Table" />
             </div>
             <div class="col-12">
               <label class="form-label">Bed Set Sub-Type (only if Bed Set)</label>
@@ -128,6 +134,10 @@
                 {% endfor %}
               </select>
               {% if errors.sub_category_id %}<div class="text-danger small mt-1">{{ errors.sub_category_id }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Or add new sub-type</label>
+              <input class="form-control" name="sub_category_name" placeholder="e.g., Luxury Cushion" />
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label">SKU</label>

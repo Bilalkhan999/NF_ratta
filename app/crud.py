@@ -485,6 +485,10 @@ def _upsert_category(db: Session, *, type: str, parent_id: int | None, name: str
     return c
 
 
+def upsert_inventory_category(db: Session, *, type: str, parent_id: int | None, name: str) -> InventoryCategory:
+    return _upsert_category(db, type=type, parent_id=parent_id, name=name)
+
+
 def _upsert_bed_size(
     db: Session,
     *,

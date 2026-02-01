@@ -1043,8 +1043,10 @@ def inventory_furniture_post(
     material_type: str = Form("Wood"),
     color_finish: str | None = Form(None),
     status: str = Form("IN_STOCK"),
-    category_id: int = Form(...),
-    sub_category_id: int | None = Form(None),
+    category_id: str = Form(""),
+    category_name: str = Form(""),
+    sub_category_id: str = Form(""),
+    sub_category_name: str = Form(""),
     notes: str | None = Form(None),
 ):
     errors: dict[str, str] = {}
@@ -1059,7 +1061,32 @@ def inventory_furniture_post(
 
     furniture_root = crud.get_inventory_category(db, type="FURNITURE", name="Furniture", parent_id=None)
     bed_set_cat = crud.get_inventory_category(db, type="FURNITURE", name="Bed Set", parent_id=(furniture_root.id if furniture_root else None))
-    if bed_set_cat and int(category_id) == int(bed_set_cat.id) and not sub_category_id:
+
+    chosen_category_id: int | None = None
+    category_id_clean = (category_id or "").strip()
+    if category_id_clean.isdigit():
+        chosen_category_id = int(category_id_clean)
+    elif (category_name or "").strip():
+        if not furniture_root:
+            errors["category_id"] = "Inventory categories are not initialized. Run Admin: Init Inventory."
+        else:
+            new_cat = crud.upsert_inventory_category(db, type="FURNITURE", parent_id=furniture_root.id, name=(category_name or "").strip())
+            chosen_category_id = int(new_cat.id)
+    else:
+        errors["category_id"] = "Category is required."
+
+    chosen_sub_category_id: int | None = None
+    sub_category_id_clean = (sub_category_id or "").strip()
+    if sub_category_id_clean.isdigit():
+        chosen_sub_category_id = int(sub_category_id_clean)
+    elif (sub_category_name or "").strip():
+        if not chosen_category_id:
+            errors["sub_category_id"] = "Select a category first."
+        else:
+            new_sub = crud.upsert_inventory_category(db, type="FURNITURE", parent_id=int(chosen_category_id), name=(sub_category_name or "").strip())
+            chosen_sub_category_id = int(new_sub.id)
+
+    if bed_set_cat and chosen_category_id and int(chosen_category_id) == int(bed_set_cat.id) and not chosen_sub_category_id:
         errors["sub_category_id"] = "Bed Set sub-type is required."
 
     if errors:
@@ -1068,7 +1095,8 @@ def inventory_furniture_post(
         type_by_id = {c.id: c for c in categories}
         subtype_by_id = {s.id: s for s in bed_set_subtypes}
         bed_sizes = crud.list_bed_sizes(db)
-        items = crud.list_furniture_items(db, q=None, limit=200)
+        items = crud.list_furniture_items_filtered(db, q=None, category_id=None, limit=200)
+        cards = crud.furniture_cards(db, items=items)
         ctx = common_context(request)
         ctx.update(
             {
@@ -1079,7 +1107,8 @@ def inventory_furniture_post(
                 "subtype_by_id": subtype_by_id,
                 "bed_sizes": bed_sizes,
                 "items": items,
-                "q": "",
+                "cards": cards,
+                "filters": {"q": "", "category_id": ""},
                 "errors": errors,
             }
         )
@@ -1092,8 +1121,8 @@ def inventory_furniture_post(
         material_type=material_type.strip() or "Wood",
         color_finish=(color_finish or "").strip() or None,
         status=status,
-        category_id=int(category_id),
-        sub_category_id=int(sub_category_id) if sub_category_id else None,
+        category_id=int(chosen_category_id or 0),
+        sub_category_id=int(chosen_sub_category_id) if chosen_sub_category_id else None,
         notes=(notes or "").strip() or None,
     )
 
