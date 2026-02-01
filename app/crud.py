@@ -747,6 +747,54 @@ def furniture_cards(db: Session, *, items: list[FurnitureItem]) -> list[dict]:
     return out
 
 
+def inventory_dashboard_stats(db: Session) -> dict:
+    furniture_items = list_furniture_items_filtered(db, q=None, category_id=None, limit=5000)
+    furniture_cards_data = furniture_cards(db, items=furniture_items)
+
+    foam_cards_data = foam_variant_cards(db, q=None, brand_id=None, limit=5000)
+
+    total_furniture = len(furniture_items)
+    total_foam = len(foam_cards_data)
+
+    low_stock = 0
+    out_of_stock = 0
+
+    furniture_value = 0
+    for c in furniture_cards_data:
+        badge = c.get("badge")
+        if badge == "Low Stock":
+            low_stock += 1
+        elif badge == "Out of Stock":
+            out_of_stock += 1
+        if badge != "Made to Order":
+            furniture_value += int(c.get("total_qty") or 0) * int(c.get("min_sale") or 0)
+
+    foam_value = 0
+    for c in foam_cards_data:
+        badge = c.get("badge")
+        if badge == "Low Stock":
+            low_stock += 1
+        elif badge == "Out of Stock":
+            out_of_stock += 1
+        v = c.get("variant")
+        if v:
+            foam_value += int(getattr(v, "qty_on_hand", 0) or 0) * int(getattr(v, "sale_price_pkr", 0) or 0)
+
+    total_items = total_furniture + total_foam
+    in_stock_items = max(total_items - low_stock - out_of_stock, 0)
+    stock_health_pct = int(round((in_stock_items / total_items) * 100)) if total_items > 0 else 0
+
+    return {
+        "total_furniture": total_furniture,
+        "total_foam": total_foam,
+        "low_stock": low_stock,
+        "out_of_stock": out_of_stock,
+        "total_inventory_value": furniture_value + foam_value,
+        "total_items": total_items,
+        "stock_health_pct": stock_health_pct,
+    }
+
+
 def foam_variant_cards(
     db: Session,
     *,

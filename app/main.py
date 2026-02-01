@@ -976,11 +976,10 @@ def coming_soon(request: Request, feature: str):
 
 @app.get("/inventory", response_class=HTMLResponse)
 def inventory_dashboard(request: Request, db: Session = Depends(get_db)):
-    furniture_low = len(crud.low_stock_furniture(db, limit=500))
-    foam_low = len(crud.low_stock_foam(db, limit=500))
+    stats = crud.inventory_dashboard_stats(db)
 
     ctx = common_context(request)
-    ctx.update({"furniture_low": furniture_low, "foam_low": foam_low})
+    ctx.update({"stats": stats})
     return TEMPLATES.TemplateResponse("inventory.html", ctx)
 
 
