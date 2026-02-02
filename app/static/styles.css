@@ -304,9 +304,12 @@ body.modal-open .btn:hover {
 
 .modal-dialog-scrollable .modal-content {
   max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-dialog-scrollable .modal-body {
+  flex: 1 1 auto;
   overflow-y: scroll;
   scrollbar-gutter: stable;
 }
