@@ -310,10 +310,12 @@ body.modal-open .btn:hover {
 
 .modal-dialog-scrollable {
   height: var(--nf-modal-max-h);
+  max-height: var(--nf-modal-max-h);
 }
 
 .modal-dialog-scrollable .modal-content {
   max-height: var(--nf-modal-max-h);
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -324,6 +326,10 @@ body.modal-open .btn:hover {
   overflow-y: scroll;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
+}
+
+.modal-dialog-scrollable .modal-footer {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
 .btn:hover {
