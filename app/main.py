@@ -1465,7 +1465,7 @@ def add_payment_post(
     name: str | None = Form(None),
     bill_no: str | None = Form(None),
     notes: str | None = Form(None),
-    employee_id: int | None = Form(None),
+    employee_id: str | None = Form(None),
     employee_tx_type: str | None = Form(None),
     payment_method: str | None = Form(None),
     reference: str | None = Form(None),
@@ -1474,16 +1474,23 @@ def add_payment_post(
     if not parsed_date:
         parsed_date = dt.date.today()
 
+    parsed_employee_id: int | None = None
+    try:
+        if employee_id is not None and str(employee_id).strip():
+            parsed_employee_id = int(str(employee_id).strip())
+    except Exception:
+        parsed_employee_id = None
+
     emp = None
-    if type == "outgoing" and employee_id:
-        emp = crud.get_employee(db, employee_id)
+    if type == "outgoing" and parsed_employee_id:
+        emp = crud.get_employee(db, parsed_employee_id)
         if emp:
             category = _employee_outgoing_category(emp)
             if not (name or "").strip():
                 name = emp.full_name
 
     errors = validate_form(type, category, bill_no, amount_pkr)
-    if type == "outgoing" and employee_id:
+    if type == "outgoing" and parsed_employee_id:
         if not emp:
             errors["employee_id"] = "Invalid employee."
     if errors:
@@ -1500,7 +1507,7 @@ def add_payment_post(
                     "name": name,
                     "bill_no": bill_no,
                     "notes": notes,
-                    "employee_id": employee_id,
+                    "employee_id": parsed_employee_id,
                     "employee_tx_type": employee_tx_type,
                     "payment_method": payment_method,
                     "reference": reference,
@@ -1520,7 +1527,7 @@ def add_payment_post(
         name=name,
         bill_no=bill_no,
         notes=notes,
-        employee_id=employee_id if type == "outgoing" else None,
+        employee_id=parsed_employee_id if type == "outgoing" else None,
         employee_tx_type=employee_tx_type if type == "outgoing" else None,
         payment_method=payment_method if type == "outgoing" else None,
         reference=reference if type == "outgoing" else None,
@@ -1589,7 +1596,7 @@ def edit_payment_post(
     name: str | None = Form(None),
     bill_no: str | None = Form(None),
     notes: str | None = Form(None),
-    employee_id: int | None = Form(None),
+    employee_id: str | None = Form(None),
     employee_tx_type: str | None = Form(None),
     payment_method: str | None = Form(None),
     reference: str | None = Form(None),
@@ -1602,16 +1609,23 @@ def edit_payment_post(
     if not parsed_date:
         parsed_date = dt.date.today()
 
+    parsed_employee_id: int | None = None
+    try:
+        if employee_id is not None and str(employee_id).strip():
+            parsed_employee_id = int(str(employee_id).strip())
+    except Exception:
+        parsed_employee_id = None
+
     emp = None
-    if tx.type == "outgoing" and employee_id:
-        emp = crud.get_employee(db, employee_id)
+    if tx.type == "outgoing" and parsed_employee_id:
+        emp = crud.get_employee(db, parsed_employee_id)
         if emp:
             category = _employee_outgoing_category(emp)
             if not (name or "").strip():
                 name = emp.full_name
 
     errors = validate_form(tx.type, category, bill_no, int(amount_pkr))
-    if tx.type == "outgoing" and employee_id:
+    if tx.type == "outgoing" and parsed_employee_id:
         if not emp:
             errors["employee_id"] = "Invalid employee."
     if errors:
@@ -1630,7 +1644,7 @@ def edit_payment_post(
                     "name": name,
                     "bill_no": bill_no,
                     "notes": notes,
-                    "employee_id": employee_id,
+                    "employee_id": parsed_employee_id,
                     "employee_tx_type": employee_tx_type,
                     "payment_method": payment_method,
                     "reference": reference,
@@ -1650,7 +1664,7 @@ def edit_payment_post(
         name=name,
         bill_no=bill_no,
         notes=notes,
-        employee_id=employee_id if tx.type == "outgoing" else None,
+        employee_id=parsed_employee_id if tx.type == "outgoing" else None,
         employee_tx_type=employee_tx_type if tx.type == "outgoing" else None,
         payment_method=payment_method if tx.type == "outgoing" else None,
         reference=reference if tx.type == "outgoing" else None,
