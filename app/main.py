@@ -927,7 +927,27 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/daily-in-out")
 def daily_in_out():
+    return RedirectResponse(url="/daily-in-out/dashboard", status_code=303)
+
+
+@app.get("/daily-in-out/dashboard")
+def daily_in_out_dashboard():
+    return RedirectResponse(url="/daily", status_code=303)
+
+
+@app.get("/daily-in-out/transactions")
+def daily_in_out_transactions():
     return RedirectResponse(url="/transactions", status_code=303)
+
+
+@app.get("/daily-in-out/reports")
+def daily_in_out_reports():
+    return RedirectResponse(url="/reports", status_code=303)
+
+
+@app.get("/daily-in-out/analytics")
+def daily_in_out_analytics():
+    return RedirectResponse(url="/analytics", status_code=303)
 
 
 @app.get("/coming-soon/{feature}", response_class=HTMLResponse)
