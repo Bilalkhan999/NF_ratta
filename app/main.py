@@ -964,7 +964,7 @@ def inventory_index(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/inventory/furniture", response_class=HTMLResponse)
-def inventory_furniture(request: Request, db: Session = Depends(get_db)):
+def inventory_furniture(request: Request, db: Session = Depends(get_db), category: str | None = None):
     _ensure_inventory_seeded(db)
 
     roots = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
@@ -976,6 +976,19 @@ def inventory_furniture(request: Request, db: Session = Depends(get_db)):
         furniture_categories = crud.list_inventory_categories(db, type="FURNITURE", parent_id=root_id)
         for cat in furniture_categories:
             furniture_subcategories.extend(crud.list_inventory_categories(db, type="FURNITURE", parent_id=cat.id))
+
+    preset_category_id: int | None = None
+    if category:
+        ckey = category.strip().lower()
+        if ckey in {"sofa", "hardware"}:
+            for c in furniture_categories:
+                n = (c.name or "").lower()
+                if ckey == "sofa" and n == "sofa":
+                    preset_category_id = c.id
+                    break
+                if ckey == "hardware" and n == "hardware":
+                    preset_category_id = c.id
+                    break
 
     items = crud.list_furniture_items_filtered(db, q=None, category_id=None, limit=500)
     cards = crud.furniture_cards(db, items=items)
@@ -999,6 +1012,7 @@ def inventory_furniture(request: Request, db: Session = Depends(get_db)):
             "furniture_categories": furniture_categories,
             "furniture_subcategories": furniture_subcategories,
             "bed_sizes": crud.list_bed_sizes(db),
+            "preset_category_id": preset_category_id,
         }
     )
     return TEMPLATES.TemplateResponse("inventory_furniture.html", ctx)

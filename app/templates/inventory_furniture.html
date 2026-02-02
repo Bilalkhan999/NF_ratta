@@ -27,6 +27,10 @@
   </div>
 </div>
 
+{% if preset_category_id %}
+  <input type="hidden" id="presetCategoryId" value="{{ preset_category_id }}" />
+{% endif %}
+
 {% if cards|length == 0 %}
   <div class="card p-5 text-center">
     <div class="h5 fw-semibold mb-1">No furniture found</div>
@@ -263,8 +267,20 @@
     if (search) search.addEventListener('input', applyFilters);
     if (category) category.addEventListener('change', applyFilters);
 
+    const presetCategoryId = document.getElementById('presetCategoryId');
+    if (presetCategoryId && category) {
+      const v = presetCategoryId.value;
+      if (v) {
+        category.value = v;
+        applyFilters();
+      }
+    }
+
     const catSelect = document.getElementById('furnitureCategorySelect');
     const subSelect = document.getElementById('furnitureSubCategorySelect');
+    const sizeSelect = document.getElementById('furnitureSizeSelect');
+    const furnitureModalEl = document.getElementById('furnitureModal');
+
     function filterSubs() {
       if (!catSelect || !subSelect) return;
       const parentId = catSelect.value;
@@ -277,8 +293,33 @@
         subSelect.value = '';
       }
     }
+
+    function ensureDefaults() {
+      const presetCategoryId = document.getElementById('presetCategoryId');
+      if (presetCategoryId && catSelect) {
+        const v = presetCategoryId.value;
+        if (v) catSelect.value = v;
+      }
+      if (catSelect && !catSelect.value) {
+        const first = Array.from(catSelect.options).find((o) => !!o.value);
+        if (first) catSelect.value = first.value;
+      }
+      filterSubs();
+      if (sizeSelect && !sizeSelect.value) {
+        const first = Array.from(sizeSelect.options).find((o) => !!o.value);
+        if (first) sizeSelect.value = first.value;
+      }
+    }
+
     if (catSelect) catSelect.addEventListener('change', filterSubs);
-    filterSubs();
+
+    if (furnitureModalEl) {
+      furnitureModalEl.addEventListener('shown.bs.modal', function () {
+        ensureDefaults();
+        const name = furnitureModalEl.querySelector('input[name="name"]');
+        if (name) name.focus();
+      });
+    }
 
     const adjustModal = document.getElementById('stockAdjustModal');
     if (adjustModal) {
