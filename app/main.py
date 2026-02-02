@@ -960,7 +960,229 @@ def _ensure_inventory_seeded(db: Session) -> None:
 def inventory_index(request: Request, db: Session = Depends(get_db)):
     _ensure_inventory_seeded(db)
     ctx = common_context(request)
+    ctx.update({"stats": crud.inventory_dashboard_stats(db)})
     return TEMPLATES.TemplateResponse("inventory_index.html", ctx)
+
+
+@app.get("/inventory/sofas", response_class=HTMLResponse)
+def inventory_sofas(request: Request, db: Session = Depends(get_db)):
+    _ensure_inventory_seeded(db)
+
+    roots = crud.list_inventory_categories(db, type="FURNITURE", parent_id=None)
+    root_id = next((c.id for c in roots if (c.name or "").lower() == "furniture"), None)
+    sofa_types: list[str] = []
+    if root_id is not None:
+        cats = crud.list_inventory_categories(db, type="FURNITURE", parent_id=root_id)
+        sofa_cat = next((c for c in cats if (c.name or "").lower() == "sofa"), None)
+        if sofa_cat is not None:
+            sofa_types = [c.name for c in crud.list_inventory_categories(db, type="FURNITURE", parent_id=sofa_cat.id)]
+
+    items = crud.list_sofa_items(db, q=None, sofa_type=None, limit=500)
+    cards = crud.sofa_cards(db, items=items)
+    for c in cards:
+        c["badge_class"] = _inventory_badge_class(str(c.get("badge") or ""))
+
+    ctx = common_context(request)
+    ctx.update({"cards": cards, "sofa_types": sofa_types})
+    return TEMPLATES.TemplateResponse("inventory_sofas.html", ctx)
+
+
+@app.post("/inventory/sofas", response_class=HTMLResponse)
+def inventory_sofas_create(
+    request: Request,
+    db: Session = Depends(get_db),
+    item_id: str | None = Form(None),
+    name: str = Form(...),
+    sofa_type: str = Form(...),
+    hardware_material: str | None = Form(None),
+    poshish_material: str | None = Form(None),
+    seating_capacity: str | None = Form(None),
+    qty_on_hand: int = Form(0),
+    cost_price_pkr: int = Form(0),
+    sale_price_pkr: int = Form(0),
+    notes: str | None = Form(None),
+):
+    _ensure_inventory_seeded(db)
+    edit_id: int | None = None
+    try:
+        if item_id and str(item_id).strip():
+            edit_id = int(str(item_id).strip())
+    except Exception:
+        edit_id = None
+
+    it = None
+    if edit_id is not None:
+        it = crud.update_sofa_item(
+            db,
+            item_id=edit_id,
+            name=name,
+            sofa_type=sofa_type,
+            hardware_material=hardware_material,
+            poshish_material=poshish_material,
+            seating_capacity=seating_capacity,
+            qty_on_hand=int(qty_on_hand or 0),
+            cost_price_pkr=int(cost_price_pkr or 0),
+            sale_price_pkr=int(sale_price_pkr or 0),
+            notes=notes,
+        )
+    if it is None:
+        crud.create_sofa_item(
+            db,
+            name=name,
+            sofa_type=sofa_type,
+            hardware_material=hardware_material,
+            poshish_material=poshish_material,
+            seating_capacity=seating_capacity,
+            qty_on_hand=int(qty_on_hand or 0),
+            cost_price_pkr=int(cost_price_pkr or 0),
+            sale_price_pkr=int(sale_price_pkr or 0),
+            notes=notes,
+        )
+    return RedirectResponse(url="/inventory/sofas", status_code=303)
+
+
+@app.post("/inventory/sofas/{item_id}/delete", response_class=HTMLResponse)
+def inventory_sofas_delete(item_id: int, db: Session = Depends(get_db)):
+    crud.soft_delete_sofa_item(db, item_id=item_id)
+    return RedirectResponse(url="/inventory/sofas", status_code=303)
+
+
+@app.get("/inventory/hardware", response_class=HTMLResponse)
+def inventory_hardware(request: Request, db: Session = Depends(get_db)):
+    _ensure_inventory_seeded(db)
+    items = crud.list_hardware_materials(db, q=None, limit=500)
+    cards = crud.hardware_cards(db, items=items)
+    for c in cards:
+        c["badge_class"] = _inventory_badge_class(str(c.get("badge") or ""))
+    ctx = common_context(request)
+    ctx.update({"cards": cards})
+    return TEMPLATES.TemplateResponse("inventory_hardware.html", ctx)
+
+
+@app.post("/inventory/hardware", response_class=HTMLResponse)
+def inventory_hardware_create(
+    request: Request,
+    db: Session = Depends(get_db),
+    item_id: str | None = Form(None),
+    name: str = Form(...),
+    unit: str = Form("pieces"),
+    qty_on_hand: int = Form(0),
+    cost_price_pkr: int = Form(0),
+    sale_price_pkr: int = Form(0),
+    notes: str | None = Form(None),
+):
+    _ensure_inventory_seeded(db)
+    edit_id: int | None = None
+    try:
+        if item_id and str(item_id).strip():
+            edit_id = int(str(item_id).strip())
+    except Exception:
+        edit_id = None
+
+    it = None
+    if edit_id is not None:
+        it = crud.update_hardware_material(
+            db,
+            item_id=edit_id,
+            name=name,
+            unit=unit,
+            qty_on_hand=int(qty_on_hand or 0),
+            cost_price_pkr=int(cost_price_pkr or 0),
+            sale_price_pkr=int(sale_price_pkr or 0),
+            notes=notes,
+        )
+    if it is None:
+        crud.create_hardware_material(
+            db,
+            name=name,
+            unit=unit,
+            qty_on_hand=int(qty_on_hand or 0),
+            cost_price_pkr=int(cost_price_pkr or 0),
+            sale_price_pkr=int(sale_price_pkr or 0),
+            notes=notes,
+        )
+    return RedirectResponse(url="/inventory/hardware", status_code=303)
+
+
+@app.post("/inventory/hardware/{item_id}/delete", response_class=HTMLResponse)
+def inventory_hardware_delete(item_id: int, db: Session = Depends(get_db)):
+    crud.soft_delete_hardware_material(db, item_id=item_id)
+    return RedirectResponse(url="/inventory/hardware", status_code=303)
+
+
+@app.get("/inventory/poshish", response_class=HTMLResponse)
+def inventory_poshish(request: Request, db: Session = Depends(get_db)):
+    _ensure_inventory_seeded(db)
+    items = crud.list_poshish_materials(db, q=None, limit=500)
+    cards = crud.poshish_cards(db, items=items)
+    for c in cards:
+        c["badge_class"] = _inventory_badge_class(str(c.get("badge") or ""))
+    ctx = common_context(request)
+    ctx.update({"cards": cards})
+    return TEMPLATES.TemplateResponse("inventory_poshish.html", ctx)
+
+
+@app.post("/inventory/poshish", response_class=HTMLResponse)
+def inventory_poshish_create(
+    request: Request,
+    db: Session = Depends(get_db),
+    item_id: str | None = Form(None),
+    name: str = Form(...),
+    color: str | None = Form(None),
+    unit: str = Form("meters"),
+    qty_on_hand: int = Form(0),
+    cost_price_pkr: int = Form(0),
+    sale_price_pkr: int = Form(0),
+    notes: str | None = Form(None),
+):
+    _ensure_inventory_seeded(db)
+    edit_id: int | None = None
+    try:
+        if item_id and str(item_id).strip():
+            edit_id = int(str(item_id).strip())
+    except Exception:
+        edit_id = None
+
+    it = None
+    if edit_id is not None:
+        it = crud.update_poshish_material(
+            db,
+            item_id=edit_id,
+            name=name,
+            color=color,
+            unit=unit,
+            qty_on_hand=int(qty_on_hand or 0),
+            cost_price_pkr=int(cost_price_pkr or 0),
+            sale_price_pkr=int(sale_price_pkr or 0),
+            notes=notes,
+        )
+    if it is None:
+        crud.create_poshish_material(
+            db,
+            name=name,
+            color=color,
+            unit=unit,
+            qty_on_hand=int(qty_on_hand or 0),
+            cost_price_pkr=int(cost_price_pkr or 0),
+            sale_price_pkr=int(sale_price_pkr or 0),
+            notes=notes,
+        )
+    return RedirectResponse(url="/inventory/poshish", status_code=303)
+
+
+@app.post("/inventory/poshish/{item_id}/delete", response_class=HTMLResponse)
+def inventory_poshish_delete(item_id: int, db: Session = Depends(get_db)):
+    crud.soft_delete_poshish_material(db, item_id=item_id)
+    return RedirectResponse(url="/inventory/poshish", status_code=303)
+
+
+@app.get("/inventory/stock/transactions", response_class=HTMLResponse)
+def inventory_stock_transactions(request: Request, db: Session = Depends(get_db)):
+    _ensure_inventory_seeded(db)
+    cards = crud.stock_movement_cards(db, limit=500)
+    ctx = common_context(request)
+    ctx.update({"cards": cards})
+    return TEMPLATES.TemplateResponse("inventory_stock_transactions.html", ctx)
 
 
 @app.get("/inventory/furniture", response_class=HTMLResponse)
@@ -1182,6 +1404,12 @@ def inventory_stock_adjust(
     )
     if inventory_type == "FOAM_VARIANT":
         return RedirectResponse(url="/inventory/foam", status_code=303)
+    if inventory_type == "SOFA_ITEM":
+        return RedirectResponse(url="/inventory/sofas", status_code=303)
+    if inventory_type == "HARDWARE_MATERIAL":
+        return RedirectResponse(url="/inventory/hardware", status_code=303)
+    if inventory_type == "POSHISH_MATERIAL":
+        return RedirectResponse(url="/inventory/poshish", status_code=303)
     return RedirectResponse(url="/inventory/furniture", status_code=303)
 
 

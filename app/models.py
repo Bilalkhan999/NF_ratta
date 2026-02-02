@@ -37,6 +37,70 @@ class Employee(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
 
+class SofaItem(Base):
+    __tablename__ = "sofa_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(256), nullable=False, index=True)
+    sofa_type = Column(String(128), nullable=False, index=True)
+    hardware_material = Column(String(128), nullable=True, index=True)
+    poshish_material = Column(String(128), nullable=True, index=True)
+    seating_capacity = Column(String(64), nullable=True)
+
+    qty_on_hand = Column(Integer, nullable=False, default=0)
+    reorder_level = Column(Integer, nullable=False, default=0)
+    cost_price_pkr = Column(Integer, nullable=False, default=0)
+    sale_price_pkr = Column(Integer, nullable=False, default=0)
+
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class HardwareMaterial(Base):
+    __tablename__ = "hardware_materials"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(256), nullable=False, index=True)
+    unit = Column(String(32), nullable=False, default="pieces")
+
+    qty_on_hand = Column(Integer, nullable=False, default=0)
+    reorder_level = Column(Integer, nullable=False, default=0)
+    cost_price_pkr = Column(Integer, nullable=False, default=0)
+    sale_price_pkr = Column(Integer, nullable=False, default=0)
+
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class PoshishMaterial(Base):
+    __tablename__ = "poshish_materials"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(256), nullable=False, index=True)
+    color = Column(String(128), nullable=True)
+    unit = Column(String(32), nullable=False, default="meters")
+
+    qty_on_hand = Column(Integer, nullable=False, default=0)
+    reorder_level = Column(Integer, nullable=False, default=0)
+    cost_price_pkr = Column(Integer, nullable=False, default=0)
+    sale_price_pkr = Column(Integer, nullable=False, default=0)
+
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
 class WeeklyAssignment(Base):
     __tablename__ = "weekly_assignments"
 

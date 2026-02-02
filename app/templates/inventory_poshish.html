@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex flex-column flex-sm-row justify-content-between gap-3 mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Poshish Materials</h1>
+    <div class="text-secondary">Manage poshish materials and stock</div>
+  </div>
+  <button class="btn btn-primary btn-lg" type="button" data-bs-toggle="modal" data-bs-target="#poshishModal" data-mode="add">
+    Add Material
+  </button>
+</div>
+
+<div class="row g-3 align-items-end mb-4">
+  <div class="col-12">
+    <label class="form-label">Search</label>
+    <input id="poshishSearch" class="form-control form-control-lg" placeholder="Search poshish..." />
+  </div>
+</div>
+
+{% if cards|length == 0 %}
+  <div class="card p-5 text-center">
+    <div class="h5 fw-semibold mb-1">No poshish materials found</div>
+    <div class="text-secondary mb-3">Get started by adding your first poshish material</div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#poshishModal" data-mode="add">Add Material</button>
+  </div>
+{% else %}
+  <div class="row g-3" id="poshishGrid">
+    {% for c in cards %}
+      {% set it = c.item %}
+      <div class="col-12 col-md-6 col-xl-4 poshish-card" data-search="{{ (it.name ~ ' ' ~ (it.color or '') ~ ' ' ~ it.unit)|lower }}">
+        <div class="card hover-elevate">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="me-3" style="min-width: 0;">
+                <div class="fw-semibold fs-5 text-truncate">{{ it.name }}</div>
+                <div class="text-secondary small">{% if it.color %}{{ it.color }} • {% endif %}Unit: {{ it.unit }}</div>
+              </div>
+              <span class="badge rounded-pill {{ c.badge_class }}">{{ c.badge }}</span>
+            </div>
+
+            <div class="small">
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-secondary">Quantity:</span>
+                <span class="fw-semibold">{{ it.qty_on_hand }}</span>
+              </div>
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-secondary">Cost:</span>
+                <span>Rs. {{ '{:,}'.format(it.cost_price_pkr or 0) }}</span>
+              </div>
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-secondary">Selling:</span>
+                <span class="fw-bold text-primary">Rs. {{ '{:,}'.format(it.sale_price_pkr or 0) }}</span>
+              </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <button
+                class="btn btn-outline-secondary flex-grow-1"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#stockAdjustModal"
+                data-variant-id="{{ it.id }}"
+                data-item-name="{{ it.name }}"
+                data-current-qty="{{ it.qty_on_hand }}"
+                data-inventory-type="POSHISH_MATERIAL"
+              >
+                Adjust Stock
+              </button>
+
+              <button
+                class="btn btn-outline-secondary"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#poshishModal"
+                data-mode="edit"
+                data-item-id="{{ it.id }}"
+                data-name="{{ it.name }}"
+                data-color="{{ it.color or '' }}"
+                data-unit="{{ it.unit }}"
+                data-qty-on-hand="{{ it.qty_on_hand }}"
+                data-cost-price-pkr="{{ it.cost_price_pkr or 0 }}"
+                data-sale-price-pkr="{{ it.sale_price_pkr or 0 }}"
+                data-notes="{{ it.notes or '' }}"
+              >
+                Edit
+              </button>
+
+              <form method="post" action="/inventory/poshish/{{ it.id }}/delete" class="m-0">
+                <button class="btn btn-outline-danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="modal fade" id="poshishModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="poshishModalTitle">Add Material</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="/inventory/poshish">
+        <input type="hidden" name="item_id" id="poshishItemId" />
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Name</label>
+              <input class="form-control form-control-lg" name="name" id="poshishNameInput" required />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Color</label>
+              <input class="form-control form-control-lg" name="color" id="poshishColorInput" placeholder="e.g. Maroon" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Unit</label>
+              <select class="form-select form-select-lg" name="unit" id="poshishUnitInput">
+                <option value="meters">meters</option>
+                <option value="yards">yards</option>
+                <option value="kg">kg</option>
+                <option value="pieces">pieces</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Quantity</label>
+              <input class="form-control form-control-lg" type="number" name="qty_on_hand" id="poshishQtyInput" value="0" min="0" />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Cost Price (PKR)</label>
+              <input class="form-control form-control-lg" type="number" name="cost_price_pkr" id="poshishCostInput" value="0" min="0" />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Selling Price (PKR)</label>
+              <input class="form-control form-control-lg" type="number" name="sale_price_pkr" id="poshishSaleInput" value="0" min="0" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" name="notes" id="poshishNotesInput" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="poshishSubmitBtn">Add Material</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="stockAdjustModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Adjust Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="/inventory/stock/adjust">
+        <div class="modal-body">
+          <input type="hidden" name="inventory_type" id="stockInventoryType" />
+          <input type="hidden" name="variant_id" id="stockVariantId" />
+
+          <div class="mb-2 fw-semibold" id="stockItemName"></div>
+          <div class="text-secondary small mb-3">Current qty: <span id="stockCurrentQty"></span></div>
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Transaction</label>
+              <select class="form-select form-select-lg" name="transaction_type" id="stockTxnType">
+                <option value="in">Stock In</option>
+                <option value="out">Stock Out</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Quantity</label>
+              <input class="form-control form-control-lg" type="number" name="quantity" id="stockQty" min="1" required />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" name="notes" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-lg">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const searchEl = document.getElementById('poshishSearch');
+  const gridEl = document.getElementById('poshishGrid');
+
+  function applyFilters() {
+    if (!gridEl) return;
+    const q = (searchEl && searchEl.value ? searchEl.value : '').trim().toLowerCase();
+    const cards = gridEl.querySelectorAll('.poshish-card');
+    cards.forEach((el) => {
+      const s = (el.getAttribute('data-search') || '');
+      el.style.display = (!q || s.includes(q)) ? '' : 'none';
+    });
+  }
+
+  if (searchEl) searchEl.addEventListener('input', applyFilters);
+
+  const modalEl = document.getElementById('poshishModal');
+  const titleEl = document.getElementById('poshishModalTitle');
+  const submitBtn = document.getElementById('poshishSubmitBtn');
+
+  const itemIdEl = document.getElementById('poshishItemId');
+  const nameEl = document.getElementById('poshishNameInput');
+  const colorEl = document.getElementById('poshishColorInput');
+  const unitEl = document.getElementById('poshishUnitInput');
+  const qtyEl = document.getElementById('poshishQtyInput');
+  const costEl = document.getElementById('poshishCostInput');
+  const saleEl = document.getElementById('poshishSaleInput');
+  const notesEl = document.getElementById('poshishNotesInput');
+
+  function setMode(isEdit) {
+    if (!titleEl || !submitBtn) return;
+    titleEl.textContent = isEdit ? 'Edit Material' : 'Add Material';
+    submitBtn.textContent = isEdit ? 'Save Changes' : 'Add Material';
+  }
+
+  function resetForm() {
+    if (itemIdEl) itemIdEl.value = '';
+    if (nameEl) nameEl.value = '';
+    if (colorEl) colorEl.value = '';
+    if (unitEl) unitEl.value = 'meters';
+    if (qtyEl) qtyEl.value = '0';
+    if (costEl) costEl.value = '0';
+    if (saleEl) saleEl.value = '0';
+    if (notesEl) notesEl.value = '';
+    setMode(false);
+  }
+
+  function fillForEdit(btn) {
+    if (!btn) return;
+    if (itemIdEl) itemIdEl.value = btn.getAttribute('data-item-id') || '';
+    if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+    if (colorEl) colorEl.value = btn.getAttribute('data-color') || '';
+    if (unitEl) unitEl.value = btn.getAttribute('data-unit') || 'meters';
+    if (qtyEl) qtyEl.value = btn.getAttribute('data-qty-on-hand') || '0';
+    if (costEl) costEl.value = btn.getAttribute('data-cost-price-pkr') || '0';
+    if (saleEl) saleEl.value = btn.getAttribute('data-sale-price-pkr') || '0';
+    if (notesEl) notesEl.value = btn.getAttribute('data-notes') || '';
+    setMode(true);
+  }
+
+  if (modalEl) {
+    modalEl.addEventListener('show.bs.modal', function (evt) {
+      const btn = evt.relatedTarget;
+      const isEdit = btn && btn.getAttribute && btn.getAttribute('data-mode') === 'edit';
+      if (isEdit) {
+        fillForEdit(btn);
+      } else {
+        resetForm();
+      }
+    });
+    modalEl.addEventListener('shown.bs.modal', function () {
+      if (nameEl) nameEl.focus();
+    });
+  }
+
+  const stockModalEl = document.getElementById('stockAdjustModal');
+  if (stockModalEl) {
+    stockModalEl.addEventListener('show.bs.modal', function (evt) {
+      const btn = evt.relatedTarget;
+      if (!btn) return;
+      const inv = btn.getAttribute('data-inventory-type') || '';
+      const vid = btn.getAttribute('data-variant-id') || '';
+      const nm = btn.getAttribute('data-item-name') || '';
+      const cq = btn.getAttribute('data-current-qty') || '';
+
+      const invEl = document.getElementById('stockInventoryType');
+      const vidEl = document.getElementById('stockVariantId');
+      const nmEl = document.getElementById('stockItemName');
+      const cqEl = document.getElementById('stockCurrentQty');
+      const qtyEl2 = document.getElementById('stockQty');
+      const txnEl = document.getElementById('stockTxnType');
+
+      if (invEl) invEl.value = inv;
+      if (vidEl) vidEl.value = vid;
+      if (nmEl) nmEl.textContent = nm;
+      if (cqEl) cqEl.textContent = cq;
+      if (qtyEl2) qtyEl2.value = '';
+      if (txnEl) txnEl.value = 'in';
+    });
+  }
+})();
+</script>
+{% endblock %}

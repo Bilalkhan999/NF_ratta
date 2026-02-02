@@ -12,9 +12,12 @@ from .models import (
     FoamModel,
     FoamThickness,
     FoamVariant,
+    HardwareMaterial,
     FurnitureItem,
     FurnitureVariant,
     InventoryCategory,
+    PoshishMaterial,
+    SofaItem,
     StockMovement,
     Transaction,
     WeeklyAssignment,
@@ -793,6 +796,270 @@ def list_furniture_items(db: Session, *, q: str | None = None, limit: int = 200)
     return list(db.execute(stmt).scalars().all())
 
 
+def create_sofa_item(
+    db: Session,
+    *,
+    name: str,
+    sofa_type: str,
+    hardware_material: str | None,
+    poshish_material: str | None,
+    seating_capacity: str | None,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    notes: str | None,
+) -> SofaItem:
+    it = SofaItem(
+        name=name,
+        sofa_type=sofa_type,
+        hardware_material=hardware_material or None,
+        poshish_material=poshish_material or None,
+        seating_capacity=seating_capacity or None,
+        qty_on_hand=int(qty_on_hand or 0),
+        reorder_level=0,
+        cost_price_pkr=int(cost_price_pkr or 0),
+        sale_price_pkr=int(sale_price_pkr or 0),
+        notes=notes,
+        is_active=True,
+    )
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return it
+
+
+def update_sofa_item(
+    db: Session,
+    *,
+    item_id: int,
+    name: str,
+    sofa_type: str,
+    hardware_material: str | None,
+    poshish_material: str | None,
+    seating_capacity: str | None,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    notes: str | None,
+) -> SofaItem | None:
+    it = db.execute(select(SofaItem).where(SofaItem.id == item_id)).scalar_one_or_none()
+    if not it:
+        return None
+    it.name = name
+    it.sofa_type = sofa_type
+    it.hardware_material = hardware_material or None
+    it.poshish_material = poshish_material or None
+    it.seating_capacity = seating_capacity or None
+    it.qty_on_hand = int(qty_on_hand or 0)
+    it.cost_price_pkr = int(cost_price_pkr or 0)
+    it.sale_price_pkr = int(sale_price_pkr or 0)
+    it.notes = notes
+    it.is_active = True
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return it
+
+
+def list_sofa_items(db: Session, *, q: str | None = None, sofa_type: str | None = None, limit: int = 500) -> list[SofaItem]:
+    stmt = select(SofaItem).where(SofaItem.is_active.is_(True)).order_by(SofaItem.id.desc())
+    if sofa_type:
+        stmt = stmt.where(SofaItem.sofa_type == sofa_type)
+    if q:
+        stmt = stmt.where(func.lower(SofaItem.name).like(f"%{q.lower()}%"))
+    stmt = stmt.limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def soft_delete_sofa_item(db: Session, *, item_id: int) -> None:
+    it = db.execute(select(SofaItem).where(SofaItem.id == item_id)).scalar_one_or_none()
+    if not it:
+        return
+    it.is_active = False
+    db.add(it)
+    db.commit()
+
+
+def sofa_cards(db: Session, *, items: list[SofaItem]) -> list[dict]:
+    out: list[dict] = []
+    for it in items:
+        qty = int(it.qty_on_hand or 0)
+        rl = int(it.reorder_level or 0)
+        is_out = qty <= 0
+        is_low = (qty <= rl) if rl > 0 else (qty < 3)
+        badge = "Out of Stock" if is_out else ("Low Stock" if is_low else "In Stock")
+        out.append({"item": it, "badge": badge})
+    return out
+
+
+def create_hardware_material(
+    db: Session,
+    *,
+    name: str,
+    unit: str,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    notes: str | None,
+) -> HardwareMaterial:
+    it = HardwareMaterial(
+        name=name,
+        unit=unit or "pieces",
+        qty_on_hand=int(qty_on_hand or 0),
+        reorder_level=0,
+        cost_price_pkr=int(cost_price_pkr or 0),
+        sale_price_pkr=int(sale_price_pkr or 0),
+        notes=notes,
+        is_active=True,
+    )
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return it
+
+
+def update_hardware_material(
+    db: Session,
+    *,
+    item_id: int,
+    name: str,
+    unit: str,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    notes: str | None,
+) -> HardwareMaterial | None:
+    it = db.execute(select(HardwareMaterial).where(HardwareMaterial.id == item_id)).scalar_one_or_none()
+    if not it:
+        return None
+    it.name = name
+    it.unit = unit or "pieces"
+    it.qty_on_hand = int(qty_on_hand or 0)
+    it.cost_price_pkr = int(cost_price_pkr or 0)
+    it.sale_price_pkr = int(sale_price_pkr or 0)
+    it.notes = notes
+    it.is_active = True
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return it
+
+
+def list_hardware_materials(db: Session, *, q: str | None = None, limit: int = 500) -> list[HardwareMaterial]:
+    stmt = select(HardwareMaterial).where(HardwareMaterial.is_active.is_(True)).order_by(HardwareMaterial.id.desc())
+    if q:
+        stmt = stmt.where(func.lower(HardwareMaterial.name).like(f"%{q.lower()}%"))
+    stmt = stmt.limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def soft_delete_hardware_material(db: Session, *, item_id: int) -> None:
+    it = db.execute(select(HardwareMaterial).where(HardwareMaterial.id == item_id)).scalar_one_or_none()
+    if not it:
+        return
+    it.is_active = False
+    db.add(it)
+    db.commit()
+
+
+def hardware_cards(db: Session, *, items: list[HardwareMaterial]) -> list[dict]:
+    out: list[dict] = []
+    for it in items:
+        qty = int(it.qty_on_hand or 0)
+        rl = int(it.reorder_level or 0)
+        is_out = qty <= 0
+        is_low = (qty <= rl) if rl > 0 else (qty < 3)
+        badge = "Out of Stock" if is_out else ("Low Stock" if is_low else "In Stock")
+        out.append({"item": it, "badge": badge})
+    return out
+
+
+def create_poshish_material(
+    db: Session,
+    *,
+    name: str,
+    color: str | None,
+    unit: str,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    notes: str | None,
+) -> PoshishMaterial:
+    it = PoshishMaterial(
+        name=name,
+        color=color or None,
+        unit=unit or "meters",
+        qty_on_hand=int(qty_on_hand or 0),
+        reorder_level=0,
+        cost_price_pkr=int(cost_price_pkr or 0),
+        sale_price_pkr=int(sale_price_pkr or 0),
+        notes=notes,
+        is_active=True,
+    )
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return it
+
+
+def update_poshish_material(
+    db: Session,
+    *,
+    item_id: int,
+    name: str,
+    color: str | None,
+    unit: str,
+    qty_on_hand: int,
+    cost_price_pkr: int,
+    sale_price_pkr: int,
+    notes: str | None,
+) -> PoshishMaterial | None:
+    it = db.execute(select(PoshishMaterial).where(PoshishMaterial.id == item_id)).scalar_one_or_none()
+    if not it:
+        return None
+    it.name = name
+    it.color = color or None
+    it.unit = unit or "meters"
+    it.qty_on_hand = int(qty_on_hand or 0)
+    it.cost_price_pkr = int(cost_price_pkr or 0)
+    it.sale_price_pkr = int(sale_price_pkr or 0)
+    it.notes = notes
+    it.is_active = True
+    db.add(it)
+    db.commit()
+    db.refresh(it)
+    return it
+
+
+def list_poshish_materials(db: Session, *, q: str | None = None, limit: int = 500) -> list[PoshishMaterial]:
+    stmt = select(PoshishMaterial).where(PoshishMaterial.is_active.is_(True)).order_by(PoshishMaterial.id.desc())
+    if q:
+        stmt = stmt.where(func.lower(PoshishMaterial.name).like(f"%{q.lower()}%"))
+    stmt = stmt.limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def soft_delete_poshish_material(db: Session, *, item_id: int) -> None:
+    it = db.execute(select(PoshishMaterial).where(PoshishMaterial.id == item_id)).scalar_one_or_none()
+    if not it:
+        return
+    it.is_active = False
+    db.add(it)
+    db.commit()
+
+
+def poshish_cards(db: Session, *, items: list[PoshishMaterial]) -> list[dict]:
+    out: list[dict] = []
+    for it in items:
+        qty = int(it.qty_on_hand or 0)
+        rl = int(it.reorder_level or 0)
+        is_out = qty <= 0
+        is_low = (qty <= rl) if rl > 0 else (qty < 3)
+        badge = "Out of Stock" if is_out else ("Low Stock" if is_low else "In Stock")
+        out.append({"item": it, "badge": badge})
+    return out
+
+
 def list_furniture_items_filtered(
     db: Session,
     *,
@@ -961,19 +1228,44 @@ def inventory_dashboard_stats(db: Session) -> dict:
 
     foam_cards_data = foam_variant_cards(db, q=None, brand_id=None, limit=5000)
 
+    sofa_items = list_sofa_items(db, q=None, sofa_type=None, limit=5000)
+    sofa_cards_data = sofa_cards(db, items=sofa_items)
+
+    hardware_items = list_hardware_materials(db, q=None, limit=5000)
+    hardware_cards_data = hardware_cards(db, items=hardware_items)
+
+    poshish_items = list_poshish_materials(db, q=None, limit=5000)
+    poshish_cards_data = poshish_cards(db, items=poshish_items)
+
     total_furniture = len(furniture_items)
     total_foam = len(foam_cards_data)
+    total_sofas = len(sofa_items)
+    total_hardware = len(hardware_items)
+    total_poshish = len(poshish_items)
 
     low_stock = 0
     out_of_stock = 0
+
+    low_stock_furniture = 0
+    out_of_stock_furniture = 0
+    low_stock_foam = 0
+    out_of_stock_foam = 0
+    low_stock_sofas = 0
+    out_of_stock_sofas = 0
+    low_stock_hardware = 0
+    out_of_stock_hardware = 0
+    low_stock_poshish = 0
+    out_of_stock_poshish = 0
 
     furniture_value = 0
     for c in furniture_cards_data:
         badge = c.get("badge")
         if badge == "Low Stock":
             low_stock += 1
+            low_stock_furniture += 1
         elif badge == "Out of Stock":
             out_of_stock += 1
+            out_of_stock_furniture += 1
         if badge != "Made to Order":
             furniture_value += int(c.get("total_qty") or 0) * int(c.get("min_sale") or 0)
 
@@ -982,22 +1274,76 @@ def inventory_dashboard_stats(db: Session) -> dict:
         badge = c.get("badge")
         if badge == "Low Stock":
             low_stock += 1
+            low_stock_foam += 1
         elif badge == "Out of Stock":
             out_of_stock += 1
+            out_of_stock_foam += 1
         v = c.get("variant")
         if v:
             foam_value += int(getattr(v, "qty_on_hand", 0) or 0) * int(getattr(v, "sale_price_pkr", 0) or 0)
 
-    total_items = total_furniture + total_foam
+    sofa_value = 0
+    for c in sofa_cards_data:
+        badge = c.get("badge")
+        if badge == "Low Stock":
+            low_stock += 1
+            low_stock_sofas += 1
+        elif badge == "Out of Stock":
+            out_of_stock += 1
+            out_of_stock_sofas += 1
+        it = c.get("item")
+        if it:
+            sofa_value += int(getattr(it, "qty_on_hand", 0) or 0) * int(getattr(it, "sale_price_pkr", 0) or 0)
+
+    hardware_value = 0
+    for c in hardware_cards_data:
+        badge = c.get("badge")
+        if badge == "Low Stock":
+            low_stock += 1
+            low_stock_hardware += 1
+        elif badge == "Out of Stock":
+            out_of_stock += 1
+            out_of_stock_hardware += 1
+        it = c.get("item")
+        if it:
+            hardware_value += int(getattr(it, "qty_on_hand", 0) or 0) * int(getattr(it, "sale_price_pkr", 0) or 0)
+
+    poshish_value = 0
+    for c in poshish_cards_data:
+        badge = c.get("badge")
+        if badge == "Low Stock":
+            low_stock += 1
+            low_stock_poshish += 1
+        elif badge == "Out of Stock":
+            out_of_stock += 1
+            out_of_stock_poshish += 1
+        it = c.get("item")
+        if it:
+            poshish_value += int(getattr(it, "qty_on_hand", 0) or 0) * int(getattr(it, "sale_price_pkr", 0) or 0)
+
+    total_items = total_furniture + total_foam + total_sofas + total_hardware + total_poshish
     in_stock_items = max(total_items - low_stock - out_of_stock, 0)
     stock_health_pct = int(round((in_stock_items / total_items) * 100)) if total_items > 0 else 0
 
     return {
         "total_furniture": total_furniture,
         "total_foam": total_foam,
+        "total_sofas": total_sofas,
+        "total_hardware": total_hardware,
+        "total_poshish": total_poshish,
+        "low_stock_furniture": low_stock_furniture,
+        "out_of_stock_furniture": out_of_stock_furniture,
+        "low_stock_foam": low_stock_foam,
+        "out_of_stock_foam": out_of_stock_foam,
+        "low_stock_sofas": low_stock_sofas,
+        "out_of_stock_sofas": out_of_stock_sofas,
+        "low_stock_hardware": low_stock_hardware,
+        "out_of_stock_hardware": out_of_stock_hardware,
+        "low_stock_poshish": low_stock_poshish,
+        "out_of_stock_poshish": out_of_stock_poshish,
         "low_stock": low_stock,
         "out_of_stock": out_of_stock,
-        "total_inventory_value": furniture_value + foam_value,
+        "total_inventory_value": furniture_value + foam_value + sofa_value + hardware_value + poshish_value,
         "total_items": total_items,
         "stock_health_pct": stock_health_pct,
     }
@@ -1180,6 +1526,18 @@ def adjust_stock(
         v = db.execute(select(FoamVariant).where(FoamVariant.id == variant_id)).scalar_one()
         v.qty_on_hand = int(v.qty_on_hand or 0) + int(qty_change)
         db.add(v)
+    elif inventory_type == "SOFA_ITEM":
+        it = db.execute(select(SofaItem).where(SofaItem.id == variant_id)).scalar_one()
+        it.qty_on_hand = int(it.qty_on_hand or 0) + int(qty_change)
+        db.add(it)
+    elif inventory_type == "HARDWARE_MATERIAL":
+        it = db.execute(select(HardwareMaterial).where(HardwareMaterial.id == variant_id)).scalar_one()
+        it.qty_on_hand = int(it.qty_on_hand or 0) + int(qty_change)
+        db.add(it)
+    elif inventory_type == "POSHISH_MATERIAL":
+        it = db.execute(select(PoshishMaterial).where(PoshishMaterial.id == variant_id)).scalar_one()
+        it.qty_on_hand = int(it.qty_on_hand or 0) + int(qty_change)
+        db.add(it)
     db.commit()
     db.refresh(mv)
 
@@ -1217,6 +1575,100 @@ def low_stock_furniture(db: Session, *, limit: int = 200) -> list[FurnitureVaria
 def list_stock_movements(db: Session, *, limit: int = 200) -> list[StockMovement]:
     stmt = select(StockMovement).order_by(StockMovement.id.desc()).limit(limit)
     return list(db.execute(stmt).scalars().all())
+
+
+def stock_movement_cards(db: Session, *, limit: int = 500) -> list[dict]:
+    moves = list_stock_movements(db, limit=limit)
+    if not moves:
+        return []
+
+    furniture_variant_ids: set[int] = set()
+    foam_variant_ids: set[int] = set()
+    sofa_ids: set[int] = set()
+    hardware_ids: set[int] = set()
+    poshish_ids: set[int] = set()
+
+    for m in moves:
+        t = (m.inventory_type or "").upper()
+        if t == "FURNITURE_VARIANT":
+            furniture_variant_ids.add(int(m.variant_id))
+        elif t == "FOAM_VARIANT":
+            foam_variant_ids.add(int(m.variant_id))
+        elif t == "SOFA_ITEM":
+            sofa_ids.add(int(m.variant_id))
+        elif t == "HARDWARE_MATERIAL":
+            hardware_ids.add(int(m.variant_id))
+        elif t == "POSHISH_MATERIAL":
+            poshish_ids.add(int(m.variant_id))
+
+    furniture_name_by_variant_id: dict[int, str] = {}
+    if furniture_variant_ids:
+        fvs = list(
+            db.execute(select(FurnitureVariant).where(FurnitureVariant.id.in_(sorted(furniture_variant_ids)))).scalars().all()
+        )
+        f_item_ids = {v.furniture_item_id for v in fvs}
+        items = []
+        if f_item_ids:
+            items = list(db.execute(select(FurnitureItem).where(FurnitureItem.id.in_(sorted(f_item_ids)))).scalars().all())
+        item_name_by_id = {i.id: i.name for i in items}
+        for v in fvs:
+            furniture_name_by_variant_id[v.id] = item_name_by_id.get(v.furniture_item_id, f"Furniture #{v.furniture_item_id}")
+
+    foam_name_by_variant_id: dict[int, str] = {}
+    if foam_variant_ids:
+        fvs = list(db.execute(select(FoamVariant).where(FoamVariant.id.in_(sorted(foam_variant_ids)))).scalars().all())
+        model_ids = {v.foam_model_id for v in fvs}
+        models = []
+        if model_ids:
+            models = list(db.execute(select(FoamModel).where(FoamModel.id.in_(sorted(model_ids)))).scalars().all())
+        model_name_by_id = {m.id: m.name for m in models}
+        for v in fvs:
+            foam_name_by_variant_id[v.id] = model_name_by_id.get(v.foam_model_id, f"Foam #{v.foam_model_id}")
+
+    sofa_name_by_id: dict[int, str] = {}
+    if sofa_ids:
+        sofas = list(db.execute(select(SofaItem).where(SofaItem.id.in_(sorted(sofa_ids)))).scalars().all())
+        sofa_name_by_id = {s.id: s.name for s in sofas}
+
+    hardware_name_by_id: dict[int, str] = {}
+    if hardware_ids:
+        mats = list(db.execute(select(HardwareMaterial).where(HardwareMaterial.id.in_(sorted(hardware_ids)))).scalars().all())
+        hardware_name_by_id = {m.id: m.name for m in mats}
+
+    poshish_name_by_id: dict[int, str] = {}
+    if poshish_ids:
+        mats = list(db.execute(select(PoshishMaterial).where(PoshishMaterial.id.in_(sorted(poshish_ids)))).scalars().all())
+        poshish_name_by_id = {m.id: m.name for m in mats}
+
+    out: list[dict] = []
+    for m in moves:
+        t = (m.inventory_type or "").upper()
+        name = ""
+        label = t
+        if t == "FURNITURE_VARIANT":
+            label = "Furniture"
+            name = furniture_name_by_variant_id.get(int(m.variant_id), f"Furniture Variant #{m.variant_id}")
+        elif t == "FOAM_VARIANT":
+            label = "Foam"
+            name = foam_name_by_variant_id.get(int(m.variant_id), f"Foam Variant #{m.variant_id}")
+        elif t == "SOFA_ITEM":
+            label = "Sofa"
+            name = sofa_name_by_id.get(int(m.variant_id), f"Sofa #{m.variant_id}")
+        elif t == "HARDWARE_MATERIAL":
+            label = "Hardware"
+            name = hardware_name_by_id.get(int(m.variant_id), f"Hardware #{m.variant_id}")
+        elif t == "POSHISH_MATERIAL":
+            label = "Poshish"
+            name = poshish_name_by_id.get(int(m.variant_id), f"Poshish #{m.variant_id}")
+
+        out.append(
+            {
+                "movement": m,
+                "label": label,
+                "item_name": name,
+            }
+        )
+    return out
 
 
 def low_stock_foam(db: Session, *, limit: int = 200) -> list[FoamVariant]:

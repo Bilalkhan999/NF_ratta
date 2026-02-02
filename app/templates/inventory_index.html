@@ -1,52 +1,138 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex flex-column flex-sm-row justify-content-between gap-3 mb-4">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-3 mb-4">
   <div>
-    <h1 class="h3 fw-bold mb-1">Inventory</h1>
-    <div class="text-secondary">Manage furniture and foam stock</div>
+    <h1 class="h3 fw-bold mb-1">Inventory Dashboard</h1>
+    <div class="text-secondary">Overview of stock health and inventory value</div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="/inventory/stock/transactions">Stock Transactions</a>
+  </div>
+</div>
+
+{% set s = stats or {} %}
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary small">Total Items</div>
+        <div class="fw-bold fs-3">{{ s.total_items or 0 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary small">Stock Health</div>
+        <div class="fw-bold fs-3">{{ s.stock_health_pct or 0 }}%</div>
+        <div class="text-secondary small">Low: {{ s.low_stock or 0 }} | Out: {{ s.out_of_stock or 0 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary small">Total Inventory Value</div>
+        <div class="fw-bold fs-3">PKR {{ s.total_inventory_value or 0 }}</div>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="row g-3">
-  <div class="col-12 col-md-6">
+  <div class="col-12 col-md-6 col-lg-4">
     <a class="text-decoration-none" href="/inventory/furniture">
       <div class="card h-100 card-hover">
         <div class="card-body">
-          <div class="fw-semibold fs-5 mb-1">Furniture</div>
-          <div class="text-secondary">Beds, almaris, showcases, etc.</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold fs-5 mb-1">Furniture</div>
+              <div class="text-secondary">Beds, almaris, showcases, etc.</div>
+            </div>
+            <span class="badge text-bg-secondary">{{ s.total_furniture or 0 }}</span>
+          </div>
+          <div class="mt-3 text-secondary small">Low: {{ s.low_stock_furniture or 0 }} | Out: {{ s.out_of_stock_furniture or 0 }}</div>
         </div>
       </div>
     </a>
   </div>
-  <div class="col-12 col-md-6">
+
+  <div class="col-12 col-md-6 col-lg-4">
+    <a class="text-decoration-none" href="/inventory/sofas">
+      <div class="card h-100 card-hover">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold fs-5 mb-1">Sofas</div>
+              <div class="text-secondary">Sofa inventory</div>
+            </div>
+            <span class="badge text-bg-secondary">{{ s.total_sofas or 0 }}</span>
+          </div>
+          <div class="mt-3 text-secondary small">Low: {{ s.low_stock_sofas or 0 }} | Out: {{ s.out_of_stock_sofas or 0 }}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-md-6 col-lg-4">
+    <a class="text-decoration-none" href="/inventory/hardware">
+      <div class="card h-100 card-hover">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold fs-5 mb-1">Hardware Materials</div>
+              <div class="text-secondary">Hinges, handles, locks, etc.</div>
+            </div>
+            <span class="badge text-bg-secondary">{{ s.total_hardware or 0 }}</span>
+          </div>
+          <div class="mt-3 text-secondary small">Low: {{ s.low_stock_hardware or 0 }} | Out: {{ s.out_of_stock_hardware or 0 }}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-md-6 col-lg-4">
+    <a class="text-decoration-none" href="/inventory/poshish">
+      <div class="card h-100 card-hover">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold fs-5 mb-1">Poshish Materials</div>
+              <div class="text-secondary">Foam sheet, cotton, fiber, etc.</div>
+            </div>
+            <span class="badge text-bg-secondary">{{ s.total_poshish or 0 }}</span>
+          </div>
+          <div class="mt-3 text-secondary small">Low: {{ s.low_stock_poshish or 0 }} | Out: {{ s.out_of_stock_poshish or 0 }}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-12 col-md-6 col-lg-4">
     <a class="text-decoration-none" href="/inventory/foam">
       <div class="card h-100 card-hover">
         <div class="card-body">
-          <div class="fw-semibold fs-5 mb-1">Foam</div>
-          <div class="text-secondary">Mattresses and foam variants</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold fs-5 mb-1">Foam</div>
+              <div class="text-secondary">Mattresses and foam variants</div>
+            </div>
+            <span class="badge text-bg-secondary">{{ s.total_foam or 0 }}</span>
+          </div>
+          <div class="mt-3 text-secondary small">Low: {{ s.low_stock_foam or 0 }} | Out: {{ s.out_of_stock_foam or 0 }}</div>
         </div>
       </div>
     </a>
   </div>
 
-  <div class="col-12 col-md-6">
-    <a class="text-decoration-none" href="/inventory/furniture?category=sofa">
+  <div class="col-12 col-md-6 col-lg-4">
+    <a class="text-decoration-none" href="/inventory/stock/transactions">
       <div class="card h-100 card-hover">
         <div class="card-body">
-          <div class="fw-semibold fs-5 mb-1">Add Sofa</div>
-          <div class="text-secondary">Quick access to sofa category</div>
-        </div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-12 col-md-6">
-    <a class="text-decoration-none" href="/inventory/furniture?category=hardware">
-      <div class="card h-100 card-hover">
-        <div class="card-body">
-          <div class="fw-semibold fs-5 mb-1">Add Hardware Materials</div>
-          <div class="text-secondary">Handles, hinges, locks, etc.</div>
+          <div class="fw-semibold fs-5 mb-1">Transactions</div>
+          <div class="text-secondary">All stock in/out history</div>
         </div>
       </div>
     </a>

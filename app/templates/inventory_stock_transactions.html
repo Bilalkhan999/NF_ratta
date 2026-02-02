@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex flex-column flex-sm-row justify-content-between gap-3 mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Stock Transactions</h1>
+    <div class="text-secondary">All stock movements across inventory</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/inventory">Back to Dashboard</a>
+</div>
+
+{% if cards|length == 0 %}
+  <div class="card p-5 text-center">
+    <div class="h5 fw-semibold mb-1">No transactions found</div>
+    <div class="text-secondary">Stock movements will appear here after adjustments</div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Item</th>
+            <th>Movement</th>
+            <th class="text-end">Qty</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cards %}
+            {% set m = c.movement %}
+            <tr>
+              <td class="text-secondary small">{{ m.created_at }}</td>
+              <td><span class="badge text-bg-secondary">{{ c.label }}</span></td>
+              <td class="fw-semibold">{{ c.item_name }}</td>
+              <td>
+                {% if (m.movement_type or '') == 'Stock In' %}
+                  <span class="badge text-bg-success">Stock In</span>
+                {% else %}
+                  <span class="badge text-bg-danger">Stock Out</span>
+                {% endif %}
+              </td>
+              <td class="text-end fw-semibold">{{ m.qty_change }}</td>
+              <td class="text-secondary small">{{ m.notes or '' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
