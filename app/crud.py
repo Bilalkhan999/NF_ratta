@@ -403,6 +403,20 @@ def distinct_names(db: Session, *, limit: int = 200) -> list[str]:
     return [r[0] for r in rows if r[0]]
 
 
+def distinct_categories(db: Session, *, limit: int = 200) -> list[str]:
+    stmt = (
+        select(func.min(Transaction.category))
+        .where(Transaction.is_deleted.is_(False))
+        .where(Transaction.category.is_not(None))
+        .where(func.length(func.trim(Transaction.category)) > 0)
+        .group_by(func.lower(Transaction.category))
+        .order_by(func.lower(Transaction.category))
+        .limit(limit)
+    )
+    rows = db.execute(stmt).all()
+    return [r[0] for r in rows if r[0]]
+
+
 def ensure_inventory_seed(db: Session) -> None:
     furniture_root = _upsert_category(db, type="FURNITURE", parent_id=None, name="Furniture")
     foam_root = _upsert_category(db, type="FOAM", parent_id=None, name="Foam")
