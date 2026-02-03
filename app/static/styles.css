@@ -272,6 +272,161 @@ body.modal-open .page {
   background: linear-gradient(135deg, rgba(13,110,253,0.20), rgba(25,135,84,0.16));
 }
 
+.emp-card {
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.10);
+}
+
+.emp-card-header {
+  position: relative;
+  height: 92px;
+  background: radial-gradient(850px 220px at 20% 0%, rgba(13,110,253,0.22), transparent 55%),
+              linear-gradient(135deg, rgba(13,110,253,0.14), rgba(255,255,255,0.06));
+}
+
+.emp-card-menu {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  text-decoration: none;
+  color: inherit;
+  background: color-mix(in srgb, var(--bs-body-bg) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+
+.emp-card-menu:hover {
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, transparent);
+}
+
+.emp-card-body {
+  padding: 1rem 1rem 0.75rem;
+  background: var(--bs-body-bg);
+}
+
+.emp-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.emp-card-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, transparent);
+  border: 4px solid var(--bs-body-bg);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+  margin-top: -54px;
+}
+
+.emp-card-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.emp-card-avatar-fallback {
+  font-weight: 900;
+  font-size: 1.35rem;
+}
+
+.emp-card-status {
+  padding-top: 0.1rem;
+}
+
+.emp-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.emp-pill-active {
+  color: #0f5132;
+  background: rgba(25, 135, 84, 0.16);
+  border-color: rgba(25, 135, 84, 0.25);
+}
+
+.emp-pill-inactive {
+  color: #41464b;
+  background: rgba(108, 117, 125, 0.16);
+  border-color: rgba(108, 117, 125, 0.25);
+}
+
+.emp-card-title {
+  margin-top: 0.65rem;
+  font-weight: 800;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.emp-card-subtitle {
+  color: var(--bs-primary);
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+.emp-card-dept {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--bs-body-color) 65%, transparent);
+  margin-top: 0.35rem;
+}
+
+.emp-card-info {
+  margin-top: 1rem;
+}
+
+.emp-info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.emp-info-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bs-body-bg) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+
+.emp-info-text {
+  color: color-mix(in srgb, var(--bs-body-color) 70%, transparent);
+  font-weight: 600;
+}
+
+.emp-card-footer {
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, transparent);
+}
+
+.emp-card-joined {
+  color: color-mix(in srgb, var(--bs-body-color) 65%, transparent);
+  font-weight: 600;
+}
+
 .emp-avatar {
   width: 44px;
   height: 44px;

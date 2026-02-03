@@ -16,44 +16,51 @@
   <div class="row g-3">
     {% for e in items %}
       <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100 card-hover">
-          <div class="card-body">
-            <div class="d-flex align-items-start justify-content-between gap-2">
-              <div class="d-flex align-items-center gap-3">
-                <div class="emp-avatar" aria-hidden="true">
-                  {% if e.profile_image_url %}
-                    <img class="emp-avatar-img" src="{{ e.profile_image_url }}" alt="{{ e.full_name }}" />
-                  {% elif e.profile_image_data %}
-                    <img class="emp-avatar-img" src="{{ e.profile_image_data }}" alt="{{ e.full_name }}" />
-                  {% else %}
-                    <div class="emp-avatar-fallback">{{ (e.full_name or 'E')[0] | upper }}</div>
-                  {% endif %}
-                </div>
-                <div>
-                  <div class="fw-semibold" style="line-height: 1.15;">{{ e.full_name }}</div>
-                  <div class="text-muted small">{{ e.mobile_number or '-' }}</div>
-                </div>
-              </div>
-              <div>
-                {% if e.status == 'active' %}
-                  <span class="badge bg-success">Active</span>
+        <div class="card h-100 emp-card">
+          <div class="emp-card-header">
+            <a class="emp-card-menu" href="/employees/{{ e.id }}/edit" aria-label="Edit">
+              <span aria-hidden="true">···</span>
+            </a>
+          </div>
+
+          <div class="emp-card-body">
+            <div class="emp-card-top">
+              <div class="emp-card-avatar" aria-hidden="true">
+                {% if e.profile_image_url %}
+                  <img class="emp-card-avatar-img" src="{{ e.profile_image_url }}" alt="{{ e.full_name }}" />
+                {% elif e.profile_image_data %}
+                  <img class="emp-card-avatar-img" src="{{ e.profile_image_data }}" alt="{{ e.full_name }}" />
                 {% else %}
-                  <span class="badge bg-secondary">Inactive</span>
+                  <div class="emp-card-avatar-fallback">{{ (e.full_name or 'E')[0] | upper }}</div>
+                {% endif %}
+              </div>
+
+              <div class="emp-card-status">
+                {% if e.status == 'active' %}
+                  <span class="emp-pill emp-pill-active">Active</span>
+                {% else %}
+                  <span class="emp-pill emp-pill-inactive">Inactive</span>
                 {% endif %}
               </div>
             </div>
 
-            <div class="mt-3">
-              <div class="d-flex flex-wrap gap-2">
-                <span class="badge text-bg-light border">{{ e.category }}</span>
-                <span class="badge text-bg-light border">{{ e.work_type }}</span>
-                <span class="badge text-bg-light border">Joined: {{ e.joining_date }}</span>
+            <div class="emp-card-title">{{ e.full_name }}</div>
+            <div class="emp-card-subtitle">{{ e.category }}</div>
+            <div class="emp-card-dept">{{ e.work_type }}</div>
+
+            <div class="emp-card-info">
+              <div class="emp-info-row">
+                <div class="emp-info-ico" aria-hidden="true">☎</div>
+                <div class="emp-info-text">{{ e.mobile_number or '-' }}</div>
               </div>
             </div>
+          </div>
 
-            <div class="mt-3 d-flex justify-content-end gap-2">
-              <a class="btn btn-sm btn-outline-primary" href="/employees/{{ e.id }}">Open</a>
+          <div class="emp-card-footer">
+            <div class="emp-card-joined">Joined {{ e.joining_date }}</div>
+            <div class="d-flex gap-2">
               <a class="btn btn-sm btn-outline-secondary" href="/employees/{{ e.id }}/edit">Edit</a>
+              <a class="btn btn-sm btn-outline-primary" href="/employees/{{ e.id }}">View Profile</a>
             </div>
           </div>
         </div>
