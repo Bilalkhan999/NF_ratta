@@ -48,6 +48,8 @@ from .utils import (
 
 MAX_IMAGE_UPLOAD_BYTES = int(os.getenv("MAX_IMAGE_UPLOAD_BYTES", "800000"))
 
+_EMPLOYEE_BACKFILL_RAN = False
+
 _CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
 if _CLOUDINARY_URL:
     import cloudinary
@@ -436,7 +438,10 @@ def pending_bills(request: Request, db: Session = Depends(get_db), q: str | None
 
 @app.get("/employees", response_class=HTMLResponse)
 def employees(request: Request, db: Session = Depends(get_db), status: str | None = None):
-    _backfill_employees_from_transactions(db)
+    global _EMPLOYEE_BACKFILL_RAN
+    if not _EMPLOYEE_BACKFILL_RAN and os.getenv("DISABLE_EMPLOYEE_BACKFILL", "").strip() != "1":
+        _backfill_employees_from_transactions(db)
+        _EMPLOYEE_BACKFILL_RAN = True
     items = crud.list_employees(db, status=status)
     ctx = common_context(request)
     ctx.update({"items": items, "status": status or ""})
@@ -1040,6 +1045,21 @@ def _map_category_to_employee_category(tx_category: str) -> str:
 
 
 def _backfill_employees_from_transactions(db: Session) -> None:
+    # Skip work if there is nothing to link; this prevents /employees from hanging
+    # on large datasets (especially in hosted environments).
+    try:
+        needs_linking = db.execute(
+            select(Transaction.id)
+            .where(Transaction.is_deleted.is_(False))
+            .where(Transaction.type == "outgoing")
+            .where(Transaction.employee_id.is_(None))
+            .limit(1)
+        ).first()
+        if not needs_linking:
+            return
+    except Exception:
+        return
+
     try:
         rows = db.execute(
             select(Transaction.name, Transaction.category)
@@ -1047,6 +1067,7 @@ def _backfill_employees_from_transactions(db: Session) -> None:
             .where(Transaction.type == "outgoing")
             .where(Transaction.name.is_not(None))
             .distinct()
+            .limit(500)
         ).all()
     except Exception:
         return
