@@ -1521,13 +1521,11 @@ def inventory_furniture_create(
     item_id: str | None = Form(None),
     name: str = Form(...),
     category_id: int = Form(...),
-    sub_category_id: str | None = Form(None),
     bed_size_id: str = Form(...),
     material_type: str = Form("Wood"),
     qty_on_hand: int = Form(0),
     cost_price_pkr: int = Form(0),
     sale_price_pkr: int = Form(0),
-    furniture_image_url: str | None = Form(None),
     furniture_image: UploadFile | None = File(None),
     notes: str | None = Form(None),
 ):
@@ -1541,11 +1539,6 @@ def inventory_furniture_create(
         edit_item_id = None
 
     sub_id: int | None = None
-    try:
-        if sub_category_id and sub_category_id.strip():
-            sub_id = int(sub_category_id)
-    except Exception:
-        sub_id = None
 
     item = None
     new_image_url: str | None = None
@@ -1562,10 +1555,6 @@ def inventory_furniture_create(
             content_type = furniture_image.content_type or "application/octet-stream"
             b64 = base64.b64encode(raw).decode("utf-8")
             new_image_data = f"data:{content_type};base64,{b64}"
-        update_image = True
-    elif furniture_image_url is not None and furniture_image_url.strip() != "":
-        new_image_url = furniture_image_url.strip()
-        new_image_data = None
         update_image = True
 
     if edit_item_id is not None:

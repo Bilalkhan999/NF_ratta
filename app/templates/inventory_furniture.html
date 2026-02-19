@@ -173,16 +173,6 @@
             </div>
 
             <div class="col-12 col-md-6">
-              <label class="form-label">Sub Category (Optional)</label>
-              <select class="form-select form-select-lg" name="sub_category_id" id="furnitureSubCategorySelect">
-                <option value="">None</option>
-                {% for sc in furniture_subcategories %}
-                  <option value="{{ sc.id }}" data-parent-id="{{ sc.parent_id }}">{{ sc.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-12 col-md-6">
               <label class="form-label">Size</label>
               <select class="form-select form-select-lg" name="bed_size_id" id="furnitureSizeSelect" required>
                 {% for s in bed_sizes %}
@@ -228,15 +218,9 @@
               <label class="form-label">Image (Upload)</label>
               <input class="form-control" type="file" name="furniture_image" id="furnitureImageFile" accept="image/*" />
             </div>
-
-            <div class="col-12 col-md-6">
-              <label class="form-label">Image URL (Optional)</label>
-              <input class="form-control" type="url" name="furniture_image_url" id="furnitureImageUrl" placeholder="https://..." />
-              <div class="form-text">If you upload an image, URL is ignored.</div>
-            </div>
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer position-sticky bottom-0 bg-body" style="z-index: 10;">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary btn-lg" id="furnitureSubmitBtn">Add Furniture</button>
         </div>
@@ -325,7 +309,6 @@
     }
 
     const catSelect = document.getElementById('furnitureCategorySelect');
-    const subSelect = document.getElementById('furnitureSubCategorySelect');
     const sizeSelect = document.getElementById('furnitureSizeSelect');
     const furnitureModalEl = document.getElementById('furnitureModal');
     const modalTitle = document.getElementById('furnitureModalTitle');
@@ -338,20 +321,6 @@
     const saleInput = document.getElementById('furnitureSaleInput');
     const notesInput = document.getElementById('furnitureNotesInput');
     const imgFileInput = document.getElementById('furnitureImageFile');
-    const imgUrlInput = document.getElementById('furnitureImageUrl');
-
-    function filterSubs() {
-      if (!catSelect || !subSelect) return;
-      const parentId = catSelect.value;
-      for (const opt of Array.from(subSelect.options)) {
-        if (!opt.value) continue;
-        const p = opt.getAttribute('data-parent-id');
-        opt.hidden = !!parentId && p !== parentId;
-      }
-      if (subSelect.selectedOptions.length && subSelect.selectedOptions[0].hidden) {
-        subSelect.value = '';
-      }
-    }
 
     function ensureDefaults() {
       const presetCategoryId = document.getElementById('presetCategoryId');
@@ -363,7 +332,6 @@
         const first = Array.from(catSelect.options).find((o) => !!o.value);
         if (first) catSelect.value = first.value;
       }
-      filterSubs();
       if (sizeSelect && !sizeSelect.value) {
         const first = Array.from(sizeSelect.options).find((o) => !!o.value);
         if (first) sizeSelect.value = first.value;
@@ -390,7 +358,6 @@
       if (costInput) costInput.value = '0';
       if (saleInput) saleInput.value = '0';
       if (notesInput) notesInput.value = '';
-      if (imgUrlInput) imgUrlInput.value = '';
       if (imgFileInput) imgFileInput.value = '';
       ensureDefaults();
     }
@@ -400,8 +367,6 @@
       if (itemIdInput) itemIdInput.value = btn.getAttribute('data-item-id') || '';
       if (nameInput) nameInput.value = btn.getAttribute('data-name') || '';
       if (catSelect) catSelect.value = btn.getAttribute('data-category-id') || '';
-      filterSubs();
-      if (subSelect) subSelect.value = btn.getAttribute('data-sub-category-id') || '';
 
       const bs = btn.getAttribute('data-bed-size-id') || '';
       if (sizeSelect) sizeSelect.value = (bs === 'None' || bs === 'null' || bs === '') ? 'custom' : bs;
@@ -409,12 +374,9 @@
       if (qtyInput) qtyInput.value = btn.getAttribute('data-qty-on-hand') || '0';
       if (costInput) costInput.value = btn.getAttribute('data-cost-price-pkr') || '0';
       if (saleInput) saleInput.value = btn.getAttribute('data-sale-price-pkr') || '0';
-      if (imgUrlInput) imgUrlInput.value = btn.getAttribute('data-image-url') || '';
       if (imgFileInput) imgFileInput.value = '';
       if (notesInput) notesInput.value = btn.getAttribute('data-notes') || '';
     }
-
-    if (catSelect) catSelect.addEventListener('change', filterSubs);
 
     if (furnitureModalEl) {
       furnitureModalEl.addEventListener('show.bs.modal', function (evt) {
