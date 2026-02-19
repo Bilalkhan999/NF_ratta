@@ -1032,6 +1032,8 @@ def create_furniture_item(
     status: str,
     category_id: int,
     sub_category_id: int | None,
+    image_url: str | None = None,
+    image_data: str | None = None,
     notes: str | None,
 ) -> FurnitureItem:
     item = FurnitureItem(
@@ -1042,6 +1044,8 @@ def create_furniture_item(
         status=status,
         category_id=category_id,
         sub_category_id=sub_category_id,
+        image_url=image_url or None,
+        image_data=image_data or None,
         notes=notes,
         is_active=True,
     )
@@ -1440,6 +1444,9 @@ def update_furniture_item(
     status: str,
     category_id: int,
     sub_category_id: int | None,
+    image_url: str | None = None,
+    image_data: str | None = None,
+    update_image: bool = False,
     notes: str | None,
 ) -> FurnitureItem | None:
     item = db.execute(select(FurnitureItem).where(FurnitureItem.id == item_id)).scalar_one_or_none()
@@ -1450,6 +1457,9 @@ def update_furniture_item(
     item.status = status
     item.category_id = category_id
     item.sub_category_id = sub_category_id
+    if update_image:
+        item.image_url = image_url or None
+        item.image_data = image_data or None
     item.notes = notes
     db.add(item)
     db.commit()

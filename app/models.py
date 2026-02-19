@@ -265,6 +265,9 @@ class FurnitureItem(Base):
     category_id = Column(Integer, nullable=False, index=True)
     sub_category_id = Column(Integer, nullable=True, index=True)
 
+    image_url = Column(String(512), nullable=True)
+    image_data = Column(Text, nullable=True)
+
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True, index=True)
 

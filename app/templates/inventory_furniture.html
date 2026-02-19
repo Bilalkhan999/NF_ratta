@@ -45,6 +45,16 @@
            data-name="{{ it.name|lower }}"
            data-category-id="{{ it.category_id }}">
         <div class="card hover-elevate">
+          {% if it.image_url or it.image_data %}
+            <img
+              src="{{ it.image_url or it.image_data }}"
+              class="card-img-top"
+              alt="{{ it.name }}"
+              style="height: 180px; object-fit: cover;"
+            />
+          {% else %}
+            <div class="bg-body-tertiary" style="height: 180px;"></div>
+          {% endif %}
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-3">
               <div class="me-3" style="min-width: 0;">
@@ -114,6 +124,7 @@
                 data-qty-on-hand="{{ c.primary_qty_on_hand }}"
                 data-cost-price-pkr="{{ c.primary_cost_price_pkr }}"
                 data-sale-price-pkr="{{ c.primary_sale_price_pkr }}"
+                data-image-url="{{ it.image_url or '' }}"
                 data-notes="{{ it.notes or '' }}"
                 aria-label="Edit"
                 title="Edit"
@@ -142,7 +153,7 @@
         <h5 class="modal-title" id="furnitureModalTitle">Add Furniture</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="post" action="/inventory/furniture">
+      <form method="post" action="/inventory/furniture" enctype="multipart/form-data">
         <input type="hidden" name="item_id" id="furnitureItemId" />
         <div class="modal-body">
           <div class="row g-3">
@@ -211,6 +222,17 @@
             <div class="col-12">
               <label class="form-label">Notes (Optional)</label>
               <textarea class="form-control" rows="3" name="notes" id="furnitureNotesInput" placeholder="Any additional notes..."></textarea>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Image (Upload)</label>
+              <input class="form-control" type="file" name="furniture_image" id="furnitureImageFile" accept="image/*" />
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Image URL (Optional)</label>
+              <input class="form-control" type="url" name="furniture_image_url" id="furnitureImageUrl" placeholder="https://..." />
+              <div class="form-text">If you upload an image, URL is ignored.</div>
             </div>
           </div>
         </div>
@@ -315,6 +337,8 @@
     const costInput = document.getElementById('furnitureCostInput');
     const saleInput = document.getElementById('furnitureSaleInput');
     const notesInput = document.getElementById('furnitureNotesInput');
+    const imgFileInput = document.getElementById('furnitureImageFile');
+    const imgUrlInput = document.getElementById('furnitureImageUrl');
 
     function filterSubs() {
       if (!catSelect || !subSelect) return;
@@ -366,6 +390,8 @@
       if (costInput) costInput.value = '0';
       if (saleInput) saleInput.value = '0';
       if (notesInput) notesInput.value = '';
+      if (imgUrlInput) imgUrlInput.value = '';
+      if (imgFileInput) imgFileInput.value = '';
       ensureDefaults();
     }
 
@@ -383,6 +409,8 @@
       if (qtyInput) qtyInput.value = btn.getAttribute('data-qty-on-hand') || '0';
       if (costInput) costInput.value = btn.getAttribute('data-cost-price-pkr') || '0';
       if (saleInput) saleInput.value = btn.getAttribute('data-sale-price-pkr') || '0';
+      if (imgUrlInput) imgUrlInput.value = btn.getAttribute('data-image-url') || '';
+      if (imgFileInput) imgFileInput.value = '';
       if (notesInput) notesInput.value = btn.getAttribute('data-notes') || '';
     }
 

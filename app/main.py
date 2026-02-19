@@ -176,6 +176,20 @@ def on_startup() -> None:
                 pass
 
             try:
+                furniture_cols = {c["name"] for c in insp.get_columns("furniture_items")}
+                furniture_alter: list[str] = []
+                if "image_url" not in furniture_cols:
+                    furniture_alter.append("ALTER TABLE furniture_items ADD COLUMN IF NOT EXISTS image_url VARCHAR(512)")
+                if "image_data" not in furniture_cols:
+                    furniture_alter.append("ALTER TABLE furniture_items ADD COLUMN IF NOT EXISTS image_data TEXT")
+                if furniture_alter:
+                    with engine.begin() as conn:
+                        for stmt in furniture_alter:
+                            conn.execute(text(stmt))
+            except Exception:
+                pass
+
+            try:
                 emp_cols = {c["name"] for c in insp.get_columns("employees")}
                 emp_alter: list[str] = []
                 if "profile_image_url" not in emp_cols:
@@ -1513,6 +1527,8 @@ def inventory_furniture_create(
     qty_on_hand: int = Form(0),
     cost_price_pkr: int = Form(0),
     sale_price_pkr: int = Form(0),
+    furniture_image_url: str | None = Form(None),
+    furniture_image: UploadFile | None = File(None),
     notes: str | None = Form(None),
 ):
     _ensure_inventory_seeded(db)
@@ -1532,6 +1548,26 @@ def inventory_furniture_create(
         sub_id = None
 
     item = None
+    new_image_url: str | None = None
+    new_image_data: str | None = None
+    update_image = False
+
+    if furniture_image is not None and furniture_image.filename:
+        raw = furniture_image.file.read(MAX_IMAGE_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_IMAGE_UPLOAD_BYTES:
+            raise HTTPException(status_code=400, detail="Image too large")
+        if _CLOUDINARY_URL:
+            new_image_url = _upload_image_to_cloudinary(raw=raw, folder="nf-ratta/furniture", public_id=f"furniture-{int(dt.datetime.utcnow().timestamp())}")
+        else:
+            content_type = furniture_image.content_type or "application/octet-stream"
+            b64 = base64.b64encode(raw).decode("utf-8")
+            new_image_data = f"data:{content_type};base64,{b64}"
+        update_image = True
+    elif furniture_image_url is not None and furniture_image_url.strip() != "":
+        new_image_url = furniture_image_url.strip()
+        new_image_data = None
+        update_image = True
+
     if edit_item_id is not None:
         item = crud.update_furniture_item(
             db,
@@ -1541,6 +1577,9 @@ def inventory_furniture_create(
             status="IN_STOCK",
             category_id=category_id,
             sub_category_id=sub_id,
+            image_url=new_image_url,
+            image_data=new_image_data,
+            update_image=update_image,
             notes=notes,
         )
 
@@ -1555,6 +1594,8 @@ def inventory_furniture_create(
             status="IN_STOCK",
             category_id=category_id,
             sub_category_id=sub_id,
+            image_url=new_image_url,
+            image_data=new_image_data,
             notes=notes,
         )
 
